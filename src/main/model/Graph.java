@@ -42,9 +42,14 @@ public class Graph {
     }
 
     public void addEdge(Vertex from, Vertex to, int weight) {
-        if (!adjacencyMap.containsKey(from) || !adjacencyMap.containsKey(to)) {
-            return; // или throw new IllegalArgumentException("Вершина не найдена")
+        // Проверяем, есть ли уже прямое ребро
+        Edge existing = getEdgeBetween(from, to);
+        if (existing != null) {
+            existing.setWeight(weight);
+            return;
         }
+
+        // Если прямого нет, создаём новое
         Edge edge = new Edge(from, to, weight);
         adjacencyMap.get(from).add(edge);
     }

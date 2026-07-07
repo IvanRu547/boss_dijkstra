@@ -15,4 +15,5 @@ public class Edge {
     public Vertex getFrom(){return this.from;}
     public Vertex getTo(){return this.to;}
     public int getWeight(){return this.weight;}
+    public void setWeight(int weight) { this.weight = weight; }
 }
