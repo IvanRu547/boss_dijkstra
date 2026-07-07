@@ -17,6 +17,6 @@ public class Vertex {
     public String getName(){return this.name;}
     public double getX(){return this.x;}
     public double getY(){return this.y;}
-    public void setX(int new_x){this.x = new_x;}
-    public void setY(int new_y){this.y = new_y;}
+    public void setX(double new_x) { this.x = new_x; }
+    public void setY(double new_y) { this.y = new_y; }
 }
