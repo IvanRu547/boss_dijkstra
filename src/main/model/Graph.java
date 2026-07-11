@@ -1,5 +1,5 @@
 //Класс самого графа
-package main.model;
+package model;
 
 import java.util.ArrayList;
 import java.util.HashMap;

@@ -1,5 +1,5 @@
 //Класс вершины графа
-package main.model;
+package model;
 
 public class Vertex {
     private int id;

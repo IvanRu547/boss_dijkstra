@@ -1,5 +1,5 @@
 //Класс ребра графа
-package main.model;
+package model;
 
 public class Edge {
     private Vertex from;

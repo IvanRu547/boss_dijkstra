@@ -1,8 +1,8 @@
-package main.ui;
+package ui;
 
-import main.model.Edge;
-import main.model.Graph;
-import main.model.Vertex;
+import model.Edge;
+import model.Graph;
+import model.Vertex;
 
 import javax.swing.*;
 import java.awt.*;
