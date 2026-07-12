@@ -7,14 +7,14 @@ import java.util.Map;
 public class BellmanFordStep {
     private final Edge processedEdge;
     private final Vertex activeVertex;
-    private final Map<Vertex, Double> distancesSnapshot;
+    private final Map<Vertex, Integer> distancesSnapshot;
     private final Map<Vertex, Vertex> predecessorsSnapshot;
     private final boolean isDistanceUpdated;
     private final String stepDescription;
 
     public BellmanFordStep(Edge processedEdge,
                            Vertex activeVertex,
-                           Map<Vertex, Double> currentDistances,
+                           Map<Vertex, Integer> currentDistances,
                            Map<Vertex, Vertex> currentPredecessors,
                            boolean isDistanceUpdated,
                            String stepDescription) {
@@ -29,7 +29,7 @@ public class BellmanFordStep {
 
     public Edge getProcessedEdge() { return processedEdge; }
     public Vertex getActiveVertex() { return activeVertex; }
-    public Map<Vertex, Double> getDistancesSnapshot() { return distancesSnapshot; }
+    public Map<Vertex, Integer> getDistancesSnapshot() { return distancesSnapshot; }
     public Map<Vertex, Vertex> getPredecessorsSnapshot() { return predecessorsSnapshot; }
     public boolean isDistanceUpdated() { return isDistanceUpdated; }
     public String getStepDescription() { return stepDescription; }
