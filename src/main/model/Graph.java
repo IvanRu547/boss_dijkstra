@@ -21,22 +21,23 @@ public class Graph {
     }
 
     public void removeVertex(Vertex v) {
-        // 1. Собираем все рёбра, связанные с удаляемой вершиной
+        // 1. Получаем все рёбра графа
+        List<Edge> allEdges = getAllEdges();
+
+        // 2. Собираем рёбра, связанные с удаляемой вершиной
         List<Edge> toRemove = new ArrayList<>();
-        for (List<Edge> edges : adjacencyMap.values()) {
-            for (Edge e : edges) {
-                if (e.getFrom().equals(v) || e.getTo().equals(v)) {
-                    toRemove.add(e);
-                }
+        for (Edge e : allEdges) {
+            if (e.getFrom().equals(v) || e.getTo().equals(v)) {
+                toRemove.add(e);
             }
         }
 
-        // 2. Удаляем эти рёбра из всех списков смежности
+        // 3. Удаляем эти рёбра из всех списков смежности
         for (List<Edge> edges : adjacencyMap.values()) {
             edges.removeAll(toRemove);
         }
 
-        // 3. Удаляем саму вершину
+        // 4. Удаляем саму вершину
         adjacencyMap.remove(v);
         vertices.remove(v);
     }
@@ -91,5 +92,17 @@ public class Graph {
     public void clear() {
         vertices.clear();
         adjacencyMap.clear();
+    }
+
+    public List<Edge> getAllEdges() {
+        List<Edge> allEdges = new ArrayList<>();
+        for (List<Edge> edges : adjacencyMap.values()) {
+            for (Edge e : edges) {
+                if (!allEdges.contains(e)) {
+                    allEdges.add(e);
+                }
+            }
+        }
+        return allEdges;
     }
 }
