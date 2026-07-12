@@ -41,7 +41,7 @@ public class BellmanFordAlgorithm {
                 int weight = edge.getWeight();
 
                 // Проверка: если путь до u найден и через u путь до v короче
-                if (distances.get(u) != INF &&
+                /*if (distances.get(u) != INF &&
                         distances.get(u) + weight < distances.get(v)) {
 
                     // Запоминаем старое значение для описания шага
@@ -61,7 +61,33 @@ public class BellmanFordAlgorithm {
 
                     // Сохраняем «снимок» момента
                     history.add(new BellmanFordStep(edge, u, distances, predecessors, true, desc));
+                }*/
+                // 1. Проверяем возможность релаксации
+                boolean isUpdated = false;
+                String desc;
+
+                // Проверяем, достижима ли вершина 'u' и улучшается ли путь до 'v'
+                if (distances.get(u) != INF && distances.get(u) + weight < distances.get(v)) {
+                    int oldDist = distances.get(v);
+                    int newDist = distances.get(u) + weight;
+
+                    // Обновляем данные
+                    distances.put(v, newDist);
+                    predecessors.put(v, u);
+                    anyUpdate = true;
+                    isUpdated = true;
+
+                    desc = String.format("Итерация %d. Ребро %s->%s (вес %d). Путь до %s улучшен: %d -> %d.",
+                            i + 1, u.getName(), v.getName(), weight, v.getName(), oldDist, newDist);
+                } else {
+                    // Вариант, когда путь не улучшился
+                    String reason = (distances.get(u) == INF) ? "вершина не достижима" : "путь не короче текущего";
+                    desc = String.format("Итерация %d. Ребро %s->%s (вес %d). Путь до %s не изменен: %s.",
+                            i + 1, u.getName(), v.getName(), weight, v.getName(), reason);
                 }
+
+                // 2. Теперь добавляем шаг В ЛЮБОМ СЛУЧАЕ
+                history.add(new BellmanFordStep(edge, v, distances, predecessors, isUpdated, desc));
             }
 
             // Если за всю итерацию не было обновлений, можно досрочно выйти из алгоритма
