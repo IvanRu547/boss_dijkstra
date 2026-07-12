@@ -7,14 +7,13 @@ import model.Vertex;
 import java.util.*;
 
 public class BellmanFordAlgorithm {
-
+    private static final int INF = 1_000_000_000;
     /**
      * Главный метод запуска алгоритма.
-     * @param graph Граф, в котором ищем пути[cite: 18].
+     * @param graph Граф, в котором ищем пути.
      * @param startVertex Стартовая вершина.
-     * @return Объект с историей шагов и итоговыми результатами[cite: 70].
+     * @return Объект с историей шагов и итоговыми результатами.
      */
-    private static final int INF = 1_000_000_000;
     public BellmanFordResult execute(Graph graph, Vertex startVertex) {
         // Подготовка структур данных
         List<BellmanFordStep> history = new ArrayList<>();
@@ -23,7 +22,7 @@ public class BellmanFordAlgorithm {
         Set<Vertex> unreachable = new HashSet<>();
         boolean hasNegativeCycle = false;
 
-        // Инициализация (устанавливаем всем бесконечность, стартовой - 0) [cite: 28]
+        // Инициализация (устанавливаем всем бесконечность, стартовой - 0)
         for (Vertex v : graph.getVertices()) {
             distances.put(v, INF);
         }
@@ -69,12 +68,6 @@ public class BellmanFordAlgorithm {
             if (!anyUpdate) break;
         }
 
-        // TODO: ТВОЯ ЗАДАЧА №2
-        // Сделать еще одну итерацию (V-ю) по всем рёбрам для поиска отрицательного цикла.
-        // Если релаксация проходит успешно -> цикл есть (hasNegativeCycle = true)[cite: 48].
-        // Затем нужно запустить обход (DFS/BFS) от вершины, где обновился вес,
-        // чтобы собрать все достижимые из нее вершины в множество unreachable.
-
         // 2. Дополнительная итерация для поиска отрицательного цикла
         for (Edge edge : allEdges) {
             Vertex u = edge.getFrom();
@@ -115,7 +108,7 @@ public class BellmanFordAlgorithm {
     }
 
     /**
-     * Вспомогательный метод для восстановления кратчайшего пути по массиву предшественников[cite: 102].
+     * Вспомогательный метод для восстановления кратчайшего пути по массиву предшественников.
      */
     public List<Vertex> getShortestPath(Vertex target, Map<Vertex, Vertex> predecessors, Map<Vertex, Integer> distances) {
         if (distances.getOrDefault(target, Integer.MAX_VALUE) == INF) {
@@ -130,9 +123,6 @@ public class BellmanFordAlgorithm {
             path.add(current);
             current = predecessors.get(current);
         }
-
-        // Сейчас путь выглядит так: [Target, ..., Start]
-        // Разворачиваем его: [Start, ..., Target]
         Collections.reverse(path);
 
         return path;

@@ -24,7 +24,7 @@ public class BellmanFordStep {
         this.distancesSnapshot = new HashMap<>(currentDistances);
         this.predecessorsSnapshot = new HashMap<>(currentPredecessors);
         this.isDistanceUpdated = isDistanceUpdated;
-        this.stepDescription = stepDescription; // Подробный текст шага на русском [cite: 106]
+        this.stepDescription = stepDescription; // Подробный текст шага на русском
     }
 
     public Edge getProcessedEdge() { return processedEdge; }
