@@ -27,6 +27,11 @@ public class MainWindow extends JFrame {
     private int vertexCounter = 0;
     private Vertex selectedVertex = null;
 
+    private static final Color ACTIVE_COLOR = new Color(0xC8, 0xD8, 0xE8);
+    private static final Color HOVER_COLOR = new Color(0xE0, 0xE0, 0xE0);
+    private static final Color ACTIVE_HOVER_COLOR = new Color(0xB0, 0xC8, 0xE0);
+    private static final Color PRESSED_COLOR = Color.LIGHT_GRAY;
+
     public MainWindow() {
         graph = new Graph();
 
@@ -53,11 +58,9 @@ public class MainWindow extends JFrame {
                     } else {
                         infoArea.setText("Здесь уже есть вершина. Выберите пустое место.");
                     }
-                }
-                else if (currentMode.equals("addEdge")) {
+                } else if (currentMode.equals("addEdge")) {
                     handleEdgeCreation(clicked);
-                }
-                else if (currentMode.equals("auto")) {
+                } else if (currentMode.equals("auto")) {
                     if (clicked == null) {
                         createVertex(x, y);
                     } else {
@@ -80,6 +83,14 @@ public class MainWindow extends JFrame {
         resetBtn = new JButton("Сброс");
         clearBtn = new JButton("Очистить");
 
+        for (JButton btn : new JButton[]{addVertexBtn, addEdgeBtn, clearBtn}) {
+            btn.setContentAreaFilled(false);
+            btn.setOpaque(true);
+            btn.setFocusPainted(false);
+            btn.setBorder(BorderFactory.createLineBorder(Color.GRAY, 1));
+            addHoverEffect(btn);
+        }
+
         addVertexBtn.setEnabled(true);
         addEdgeBtn.setEnabled(true);
         runBtn.setEnabled(false);
@@ -87,8 +98,8 @@ public class MainWindow extends JFrame {
         resetBtn.setEnabled(false);
         clearBtn.setEnabled(true);
 
-        addVertexBtn.addActionListener(e -> switchMode("addVertex", "Режим: только добавление вершин. Кликните по пустому месту."));
-        addEdgeBtn.addActionListener(e -> switchMode("addEdge", "Режим: только добавление рёбер. Кликните по вершине."));
+        addVertexBtn.addActionListener(e -> setMode("addVertex"));
+        addEdgeBtn.addActionListener(e -> setMode("addEdge"));
         clearBtn.addActionListener(e -> clearGraph());
 
         buttonPanel.add(addVertexBtn);
@@ -108,7 +119,124 @@ public class MainWindow extends JFrame {
         scrollPane.setPreferredSize(new Dimension(900, 80));
         add(scrollPane, BorderLayout.SOUTH);
 
+        updateButtonStyles();
+
         setLocationRelativeTo(null);
+    }
+
+    private void addHoverEffect(JButton btn) {
+        btn.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                if (btn.isEnabled()) {
+                    btn.setContentAreaFilled(true);
+                    if (isActiveButton(btn)) {
+                        btn.setBackground(ACTIVE_HOVER_COLOR);
+                    } else {
+                        btn.setBackground(HOVER_COLOR);
+                    }
+                }
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                if (btn.isEnabled()) {
+                    applyModeStyle(btn);
+                }
+            }
+
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (btn.isEnabled()) {
+                    btn.setBackground(PRESSED_COLOR);
+                }
+            }
+
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                if (btn.isEnabled()) {
+                    if (btn.contains(e.getPoint())) {
+                        if (isActiveButton(btn)) {
+                            btn.setBackground(ACTIVE_HOVER_COLOR);
+                        } else {
+                            btn.setBackground(HOVER_COLOR);
+                        }
+                    } else {
+                        applyModeStyle(btn);
+                    }
+                }
+            }
+        });
+    }
+
+    private boolean isActiveButton(JButton btn) {
+        return (btn == addVertexBtn && currentMode.equals("addVertex")) ||
+               (btn == addEdgeBtn && currentMode.equals("addEdge"));
+    }
+
+    private void applyModeStyle(JButton btn) {
+        if (!btn.isEnabled()) return;
+
+        if (btn == addVertexBtn) {
+            if (currentMode.equals("addVertex")) {
+                btn.setBackground(ACTIVE_COLOR);
+                btn.setContentAreaFilled(true);
+            } else {
+                btn.setBackground(null);
+                btn.setContentAreaFilled(false);
+            }
+        } else if (btn == addEdgeBtn) {
+            if (currentMode.equals("addEdge")) {
+                btn.setBackground(ACTIVE_COLOR);
+                btn.setContentAreaFilled(true);
+            } else {
+                btn.setBackground(null);
+                btn.setContentAreaFilled(false);
+            }
+        } else if (btn == clearBtn) {
+            btn.setBackground(null);
+            btn.setContentAreaFilled(false);
+        }
+    }
+
+    private void updateButtonStyles() {
+        applyModeStyle(addVertexBtn);
+        applyModeStyle(addEdgeBtn);
+        applyModeStyle(clearBtn);
+    }
+
+    private void setMode(String mode) {
+        if (currentMode.equals(mode)) {
+            currentMode = "auto";
+            infoArea.setText("Авто-режим: клик по пустому месту — вершина, клик по вершине — ребро.");
+        } else {
+            currentMode = mode;
+            if (mode.equals("addVertex")) {
+                infoArea.setText("Режим: только добавление вершин. Кликните по пустому месту.");
+            } else if (mode.equals("addEdge")) {
+                infoArea.setText("Режим: только добавление рёбер. Кликните по вершине.");
+            }
+        }
+        updateButtonStyles();
+        deselectVertex();
+
+        checkMouseHover(addVertexBtn);
+        checkMouseHover(addEdgeBtn);
+        checkMouseHover(clearBtn);
+    }
+
+    private void checkMouseHover(JButton btn) {
+        if (!btn.isEnabled()) return;
+        // getMousePosition() может вернуть null, если компонент не отображается
+        Point mousePos = btn.getMousePosition();
+        if (mousePos != null && btn.contains(mousePos)) {
+            btn.setContentAreaFilled(true);
+            if (isActiveButton(btn)) {
+                btn.setBackground(ACTIVE_HOVER_COLOR);
+            } else {
+                btn.setBackground(HOVER_COLOR);
+            }
+        }
     }
 
     private void createVertex(int x, int y) {
@@ -151,23 +279,7 @@ public class MainWindow extends JFrame {
 
     private void createEdgeBetween(Vertex from, Vertex to) {
         Edge existing = graph.getEdgeBetween(from, to);
-        Edge reverse = graph.getEdgeBetween(to, from);
-
-        // Если есть обратное ребро и нет прямого — создаём встречное без диалога
-        if (reverse != null && existing == null) {
-            graph.addEdge(from, to, reverse.getWeight());
-            deselectVertex();
-            infoArea.setText("Добавлено встречное ребро " + from.getName() + " -> " + to.getName() + " с весом " + reverse.getWeight());
-            return;
-        }
-
-        // Иначе показываем диалог
-        String defaultWeight = "";
-        if (existing != null) {
-            defaultWeight = String.valueOf(existing.getWeight());
-        } else if (reverse != null) {
-            defaultWeight = String.valueOf(reverse.getWeight());
-        }
+        String defaultWeight = (existing != null) ? String.valueOf(existing.getWeight()) : "";
 
         String input = JOptionPane.showInputDialog(
                 MainWindow.this,
@@ -179,25 +291,16 @@ public class MainWindow extends JFrame {
             try {
                 int weight = Integer.parseInt(input.trim());
                 graph.addEdge(from, to, weight);
-
-                // Синхронизируем обратное ребро
-                Edge reverseAfter = graph.getEdgeBetween(to, from);
-                if (reverseAfter != null) {
-                    reverseAfter.setWeight(weight);
-                }
-
                 deselectVertex();
                 infoArea.setText("Добавлено ребро " + from.getName() + " -> " + to.getName() + " с весом " + weight);
+                canvas.repaint();
             } catch (NumberFormatException ex) {
                 infoArea.setText("Ошибка: вес должен быть целым числом.");
             }
+        } else {
+            deselectVertex();
+            infoArea.setText("Добавление ребра отменено.");
         }
-    }
-
-    private void switchMode(String mode, String message) {
-        currentMode = mode;
-        deselectVertex();
-        infoArea.setText(message);
     }
 
     private void clearGraph() {
@@ -205,6 +308,7 @@ public class MainWindow extends JFrame {
         vertexCounter = 0;
         deselectVertex();
         infoArea.setText("Граф очищен.");
+        canvas.repaint();
     }
 
     private Vertex findVertexAt(int x, int y) {
