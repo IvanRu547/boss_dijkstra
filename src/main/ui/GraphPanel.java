@@ -6,6 +6,8 @@ import model.Vertex;
 import algorithm.BellmanFordStep;
 
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.swing.*;
 import java.awt.*;
@@ -40,15 +42,19 @@ public class GraphPanel extends JPanel {
     private Vertex draggingVertex = null;
     private boolean draggingVertexMode = false;
 
-    // Размеры в МИРОВЫХ координатах (при зуме 1.0 они соответствуют пикселям)
-    private static final double CURVE_OFFSET = 35.0;   // изгиб дуги
-    private static final double TEXT_OFFSET = 22.0;    // отступ текста от дуги/прямой
+    private List<Edge> shortestPathEdges;
+
+    private static final double CURVE_OFFSET = 35.0;
+    private static final double TEXT_OFFSET = 22.0;
+
+    private static final Color ORANGE_COLOR = new Color(255, 165, 0);
+    private static final Color GRAY_COLOR = new Color(192, 192, 192, 180);
+    private static final Color PURPLE_COLOR = new Color(138, 43, 226);
 
     public GraphPanel(Graph graph) {
         this.graph = graph;
         setBackground(Color.WHITE);
 
-        // Зум колёсиком
         addMouseWheelListener(new MouseAdapter() {
             @Override
             public void mouseWheelMoved(MouseWheelEvent e) {
@@ -66,27 +72,21 @@ public class GraphPanel extends JPanel {
             }
         });
 
-        // Перетаскивание холста правой кнопкой
-        // Перетаскивание вершин и холста
         addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
                 Point graphPoint = screenToGraph(e.getX(), e.getY());
 
                 if (e.getButton() == MouseEvent.BUTTON1) {
-                    // Левая кнопка — обрабатывается в MainWindow
                     return;
                 }
 
                 if (e.getButton() == MouseEvent.BUTTON3) {
-                    // Правая кнопка
                     Vertex clicked = findVertexAt(graphPoint.x, graphPoint.y);
                     if (clicked != null) {
-                        // Перетаскиваем вершину
                         draggingVertex = clicked;
                         draggingVertexMode = true;
                     } else {
-                        // Перетаскиваем холст
                         dragging = true;
                         lastMouseX = e.getX();
                         lastMouseY = e.getY();
@@ -108,13 +108,11 @@ public class GraphPanel extends JPanel {
             @Override
             public void mouseDragged(MouseEvent e) {
                 if (draggingVertexMode && draggingVertex != null) {
-                    // Перетаскиваем вершину
                     Point graphPoint = screenToGraph(e.getX(), e.getY());
                     draggingVertex.setX(graphPoint.x);
                     draggingVertex.setY(graphPoint.y);
                     repaint();
                 } else if (dragging) {
-                    // Перетаскиваем холст
                     offsetX += e.getX() - lastMouseX;
                     offsetY += e.getY() - lastMouseY;
                     lastMouseX = e.getX();
@@ -129,7 +127,6 @@ public class GraphPanel extends JPanel {
         this.selectedVertex = v;
     }
 
-
     public Point screenToGraph(int screenX, int screenY) {
         int graphX = (int) ((screenX - offsetX) / zoom);
         int graphY = (int) ((screenY - offsetY) / zoom);
@@ -138,6 +135,19 @@ public class GraphPanel extends JPanel {
 
     public double getZoom() {
         return zoom;
+    }
+
+    public void setShortestPath(List<Vertex> path) {
+        this.shortestPathEdges = new ArrayList<>();
+        if (path != null) {
+            for (int i = 0; i < path.size() - 1; i++) {
+                Edge e = graph.getEdgeBetween(path.get(i), path.get(i + 1));
+                if (e != null) {
+                    shortestPathEdges.add(e);
+                }
+            }
+        }
+        repaint();
     }
 
     @Override
@@ -149,18 +159,43 @@ public class GraphPanel extends JPanel {
         g2.translate(offsetX, offsetY);
         g2.scale(zoom, zoom);
 
-        // Рёбра
         for (Vertex v : graph.getVertices()) {
             for (Edge e : graph.getNeighbors(v)) {
                 drawEdge(g2, e);
             }
         }
 
-        // Вершины
+        if (currentStep != null) {
+            Edge processedEdge = currentStep.getProcessedEdge();
+
+            if (processedEdge != null) {
+                drawHighlightedEdge(g2, processedEdge, ORANGE_COLOR, (float) (4 / zoom));
+            }
+
+            Vertex activeVertex = processedEdge != null ? processedEdge.getFrom() : null;
+            Vertex targetVertex = processedEdge != null ? processedEdge.getTo() : null;
+
+            Map<Vertex, Integer> distances = currentStep.getDistancesSnapshot();
+            for (Vertex v : graph.getVertices()) {
+                int dist = distances.getOrDefault(v, Integer.MAX_VALUE);
+                if (dist != 1_000_000_000 && !v.equals(activeVertex) && !v.equals(targetVertex)) {
+                    int vx = (int) v.getX();
+                    int vy = (int) v.getY();
+                    g2.setColor(GRAY_COLOR);
+                    g2.fillOval(vx - RADIUS, vy - RADIUS, RADIUS * 2, RADIUS * 2);
+                }
+            }
+        }
+
+        if (shortestPathEdges != null) {
+            for (Edge e : shortestPathEdges) {
+                drawHighlightedEdge(g2, e, Color.RED, (float) (5 / zoom));
+            }
+        }
+
         for (Vertex v : graph.getVertices()) {
             int x = (int) v.getX();
             int y = (int) v.getY();
-
 
             if (v.equals(startVertex)) {
                 g2.setColor(Color.GREEN);
@@ -178,6 +213,7 @@ public class GraphPanel extends JPanel {
 
             g2.setColor(new Color(100, 149, 237));
             g2.fillOval(x - RADIUS, y - RADIUS, RADIUS * 2, RADIUS * 2);
+
             g2.setColor(Color.BLACK);
             g2.setStroke(new BasicStroke((float) (2 / zoom)));
             g2.drawOval(x - RADIUS, y - RADIUS, RADIUS * 2, RADIUS * 2);
@@ -186,8 +222,24 @@ public class GraphPanel extends JPanel {
             FontMetrics fm = g2.getFontMetrics();
             String label = v.getName();
             g2.drawString(label, x - fm.stringWidth(label) / 2, y + fm.getAscent() / 2 - 2);
+
+            if (currentStep != null) {
+                Edge processedEdge = currentStep.getProcessedEdge();
+                if (processedEdge != null) {
+                    if (v.equals(processedEdge.getFrom())) {
+                        g2.setColor(Color.YELLOW);
+                        g2.setStroke(new BasicStroke((float) (3 / zoom)));
+                        g2.drawOval(x - RADIUS - 2, y - RADIUS - 2, (RADIUS + 2) * 2, (RADIUS + 2) * 2);
+                    }
+                    if (v.equals(processedEdge.getTo())) {
+                        g2.setColor(PURPLE_COLOR);
+                        g2.setStroke(new BasicStroke((float) (3 / zoom)));
+                        g2.drawOval(x - RADIUS - 2, y - RADIUS - 2, (RADIUS + 2) * 2, (RADIUS + 2) * 2);
+                    }
+                }
+            }
         }
-        // Расстояния рядом с вершинами
+
         if (currentStep != null) {
             Map<Vertex, Integer> distances = currentStep.getDistancesSnapshot();
             for (Vertex v : graph.getVertices()) {
@@ -198,20 +250,27 @@ public class GraphPanel extends JPanel {
                     String distStr = String.valueOf(dist);
                     g2.setColor(new Color(0, 100, 0));
                     g2.setFont(new Font("Arial", Font.PLAIN, (int) (12 / zoom)));
-                    FontMetrics fm = g2.getFontMetrics();
-                    g2.drawString(distStr, vx - fm.stringWidth(distStr) / 2, vy - RADIUS - 8);
+                    FontMetrics fm2 = g2.getFontMetrics();
+                    g2.drawString(distStr, vx - fm2.stringWidth(distStr) / 2, vy - RADIUS - 8);
                 }
             }
         }
     }
 
-    public void setStartVertex(Vertex v) { this.startVertex = v; }
-    public void setEndVertex(Vertex v) { this.endVertex = v; }
+    public void setStartVertex(Vertex v) { this.startVertex = v; repaint(); }
+    public void setEndVertex(Vertex v) { this.endVertex = v; repaint(); }
 
     public void clearHighlights() {
         this.startVertex = null;
         this.endVertex = null;
         this.currentStep = null;
+        this.shortestPathEdges = null;
+        repaint();
+    }
+
+    public void setCurrentStep(BellmanFordStep step) {
+        this.currentStep = step;
+        repaint();
     }
 
     private void drawEdge(Graphics2D g2, Edge edge) {
@@ -251,9 +310,8 @@ public class GraphPanel extends JPanel {
         g2.setStroke(new BasicStroke((float) (2 / zoom)));
         g2.drawLine((int) startX, (int) startY, (int) endX, (int) endY);
 
-        drawArrow(g2, (int) endX, (int) endY, angle);
+        drawArrow(g2, (int) endX, (int) endY, angle, Color.DARK_GRAY);
 
-        // Перпендикуляр вправо
         double perpX = dy;
         double perpY = -dx;
         double perpLen = Math.sqrt(perpX * perpX + perpY * perpY);
@@ -287,11 +345,9 @@ public class GraphPanel extends JPanel {
         double ux = dx / len;
         double uy = dy / len;
 
-        // Левый перпендикуляр (против часовой)
         double leftPerpX = -uy;
         double leftPerpY = ux;
 
-        // Изгиб влево от направления
         double ctrlX = (x1 + x2) / 2.0 + leftPerpX * CURVE_OFFSET;
         double ctrlY = (y1 + y2) / 2.0 + leftPerpY * CURVE_OFFSET;
 
@@ -308,14 +364,54 @@ public class GraphPanel extends JPanel {
         g2.draw(curve);
 
         double tangentAngle = Math.atan2(endY - ctrlY, endX - ctrlX);
-        drawArrow(g2, (int) endX, (int) endY, tangentAngle);
+        drawArrow(g2, (int) endX, (int) endY, tangentAngle, Color.DARK_GRAY);
 
-        // Текст с той же стороны, что и изгиб (снаружи дуги)
         Point2D midPoint = evalQuadCurve(curve, 0.5);
         double textX = midPoint.getX() + leftPerpX * TEXT_OFFSET;
         double textY = midPoint.getY() + leftPerpY * TEXT_OFFSET;
 
         drawWeight(g2, edge.getWeight(), textX, textY);
+    }
+
+    private void drawHighlightedEdge(Graphics2D g2, Edge edge, Color color, float strokeWidth) {
+        Vertex from = edge.getFrom();
+        Vertex to = edge.getTo();
+        Edge reverse = graph.getEdgeBetween(to, from);
+
+        double x1 = from.getX();
+        double y1 = from.getY();
+        double x2 = to.getX();
+        double y2 = to.getY();
+
+        double dx = x2 - x1;
+        double dy = y2 - y1;
+        double len = Math.sqrt(dx * dx + dy * dy);
+        if (len == 0) return;
+
+        double angle = Math.atan2(dy, dx);
+        double startX = x1 + RADIUS * Math.cos(angle);
+        double startY = y1 + RADIUS * Math.sin(angle);
+        double endX = x2 - RADIUS * Math.cos(angle);
+        double endY = y2 - RADIUS * Math.sin(angle);
+
+        g2.setColor(color);
+        g2.setStroke(new BasicStroke(strokeWidth));
+
+        if (reverse != null) {
+            double ux = dx / len;
+            double uy = dy / len;
+            double leftPerpX = -uy;
+            double leftPerpY = ux;
+            double ctrlX = (x1 + x2) / 2.0 + leftPerpX * CURVE_OFFSET;
+            double ctrlY = (y1 + y2) / 2.0 + leftPerpY * CURVE_OFFSET;
+            QuadCurve2D curve = new QuadCurve2D.Double(startX, startY, ctrlX, ctrlY, endX, endY);
+            g2.draw(curve);
+            double tangentAngle = Math.atan2(endY - ctrlY, endX - ctrlX);
+            drawArrow(g2, (int) endX, (int) endY, tangentAngle, color);
+        } else {
+            g2.drawLine((int) startX, (int) startY, (int) endX, (int) endY);
+            drawArrow(g2, (int) endX, (int) endY, angle, color);
+        }
     }
 
     private Point2D evalQuadCurve(QuadCurve2D curve, double t) {
@@ -324,26 +420,23 @@ public class GraphPanel extends JPanel {
         return new Point2D.Double(x, y);
     }
 
-    private void drawArrow(Graphics2D g2, int x, int y, double angle) {
-        int arrowSize = (int) (12 / zoom);  // стрелка всегда 12 экранных пикселей
+    private void drawArrow(Graphics2D g2, int x, int y, double angle, Color color) {
+        int arrowSize = (int) (12 / zoom);
         double arrowAngle = Math.toRadians(25);
         int x1 = (int) (x - arrowSize * Math.cos(angle - arrowAngle));
         int y1 = (int) (y - arrowSize * Math.sin(angle - arrowAngle));
         int x2 = (int) (x - arrowSize * Math.cos(angle + arrowAngle));
         int y2 = (int) (y - arrowSize * Math.sin(angle + arrowAngle));
-        g2.setColor(Color.DARK_GRAY);
+        g2.setColor(color);
         g2.fillPolygon(new int[]{x, x1, x2}, new int[]{y, y1, y2}, 3);
     }
 
     private void drawWeight(Graphics2D g2, int weight, double x, double y) {
         g2.setColor(Color.RED);
-        // Плавное масштабирование шрифта: от 9.36px при zoom=0.3 до 23.4px при zoom=3.0
         int fontSize;
         if (zoom <= 1.0) {
-            // При отдалении: минимум 12, плавно растёт до 13
             fontSize = (int) (12 + zoom);
         } else {
-            // При приближении: плавно растёт до 16
             fontSize = (int) (13 + 3 * Math.log(zoom));
         }
         g2.setFont(new Font("Arial", Font.BOLD, fontSize));
@@ -365,10 +458,4 @@ public class GraphPanel extends JPanel {
         }
         return null;
     }
-
-    public void setCurrentStep(BellmanFordStep step) {
-        this.currentStep = step;
-    }
-
-
 }

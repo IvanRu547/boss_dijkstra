@@ -9,11 +9,16 @@ import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.Point;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 
 import algorithm.BellmanFordAlgorithm;
 import algorithm.BellmanFordResult;
 import algorithm.BellmanFordStep;
 import java.util.List;
+import java.util.Map;
 
 public class MainWindow extends JFrame {
 
@@ -22,21 +27,21 @@ public class MainWindow extends JFrame {
 
     private Timer autoTimer;
 
-
     private JButton addVertexBtn;
     private JButton addEdgeBtn;
     private JButton runBtn;
     private JButton stepBtn;
     private JButton resetBtn;
     private JButton clearBtn;
-    private JTextArea infoArea;
     private JButton startBtn;
     private JButton finishBtn;
     private JButton autoBtn;
     private JButton arrangeBtn;
+    private JButton saveLogBtn;
 
+    private JTextArea infoArea;
     private JTextField speedField;
-    private int autoSpeed = 500; // значение по умолчанию в мс
+    private int autoSpeed = 500;
 
     private String currentMode = "auto";
     private int vertexCounter = 0;
@@ -88,8 +93,8 @@ public class MainWindow extends JFrame {
                         canvas.setStartVertex(startVertex);
                         canvas.repaint();
                         runBtn.setEnabled(true);
-                        infoArea.setText("Стартовая вершина: " + startVertex.getName() + ". Выберите финиш.");
-                        currentMode = "selectEnd";
+                        infoArea.setText("Стартовая вершина: " + startVertex.getName() + ".");
+                        setMode("auto");
                     } else {
                         infoArea.setText("Кликните по вершине, чтобы выбрать старт.");
                     }
@@ -98,18 +103,27 @@ public class MainWindow extends JFrame {
                         endVertex = clicked;
                         canvas.setEndVertex(endVertex);
                         canvas.repaint();
-                        infoArea.setText("Конечная вершина: " + endVertex.getName() + ". Нажмите 'Запустить'.");
-                        currentMode = "auto";
+                        infoArea.setText("Конечная вершина: " + endVertex.getName() + ".");
+                        setMode("auto");
                     } else if (clicked != null && clicked.equals(startVertex)) {
                         infoArea.setText("Стартовая и конечная вершины не должны совпадать.");
                     } else {
-                        infoArea.setText("Кликните по вершине, чтобы выбрать финиш.");
+                        infoArea.setText("Кликните по вершине, чтобы выбрать конечную вершину.");
                     }
                 } else if (currentMode.equals("auto")) {
-                    if (clicked == null) {
-                        createVertex(x, y);
+                    if (result != null && currentStepIndex >= result.getStepsHistory().size()) {
+                        if (clicked != null) {
+                            showPathToVertex(clicked);
+                        } else {
+                            canvas.setShortestPath(null);
+                            infoArea.setText("Алгоритм завершён. Кликните по вершине, чтобы увидеть кратчайший путь.");
+                        }
                     } else {
-                        handleEdgeCreation(clicked);
+                        if (clicked == null) {
+                            createVertex(x, y);
+                        } else {
+                            handleEdgeCreation(clicked);
+                        }
                     }
                 }
             }
@@ -117,35 +131,23 @@ public class MainWindow extends JFrame {
 
         add(canvas, BorderLayout.CENTER);
 
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new GridLayout(12, 1, 5, 10));
-        buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
-
         addVertexBtn = new JButton("Вершина");
         addEdgeBtn = new JButton("Ребро");
+        startBtn = new JButton("Старт");
+        finishBtn = new JButton("Финиш");
         runBtn = new JButton("Запустить");
         stepBtn = new JButton("Шаг вперёд");
         resetBtn = new JButton("Сброс");
-        clearBtn = new JButton("Очистить");
-        startBtn = new JButton("Старт");
-        finishBtn = new JButton("Финиш");
-        autoBtn = new JButton("Авто");
         arrangeBtn = new JButton("Расставить");
-        arrangeBtn.setEnabled(false);
+        clearBtn = new JButton("Очистить");
+        autoBtn = new JButton("Авто");
+        saveLogBtn = new JButton("Сохранить лог");
 
-        startBtn.addActionListener(e -> {
-            currentMode = "selectStart";
-            deselectVertex();
-            infoArea.setText("Выберите стартовую вершину.");
-        });
-
-        finishBtn.addActionListener(e -> {
-            currentMode = "selectEnd";
-            deselectVertex();
-            infoArea.setText("Выберите конечную вершину.");
-        });
-
-        for (JButton btn : new JButton[]{addVertexBtn, addEdgeBtn, clearBtn}) {
+        JButton[] allButtons = {
+            addVertexBtn, addEdgeBtn, startBtn, finishBtn,
+            runBtn, stepBtn, resetBtn, arrangeBtn, clearBtn, autoBtn, saveLogBtn
+        };
+        for (JButton btn : allButtons) {
             btn.setContentAreaFilled(false);
             btn.setOpaque(true);
             btn.setFocusPainted(false);
@@ -153,22 +155,47 @@ public class MainWindow extends JFrame {
             addHoverEffect(btn);
         }
 
-        addVertexBtn.setEnabled(true);
-        addEdgeBtn.setEnabled(true);
         runBtn.setEnabled(false);
         stepBtn.setEnabled(false);
         resetBtn.setEnabled(false);
-        clearBtn.setEnabled(true);
+        arrangeBtn.setEnabled(false);
         autoBtn.setEnabled(false);
+        saveLogBtn.setEnabled(false);
 
-        addVertexBtn.addActionListener(e -> setMode("addVertex"));
-        addEdgeBtn.addActionListener(e -> setMode("addEdge"));
+        addVertexBtn.addActionListener(e -> {
+            resetAlgorithmIfRunning();
+            setMode("addVertex");
+        });
+        addEdgeBtn.addActionListener(e -> {
+            resetAlgorithmIfRunning();
+            setMode("addEdge");
+        });
         clearBtn.addActionListener(e -> clearGraph());
         runBtn.addActionListener(e -> runAlgorithm());
         stepBtn.addActionListener(e -> showNextStep());
         resetBtn.addActionListener(e -> resetAlgorithm());
         autoBtn.addActionListener(e -> startAutoPlay());
+        saveLogBtn.addActionListener(e -> saveLogToFile());
 
+        startBtn.addActionListener(e -> {
+            resetAlgorithmIfRunning();
+            if (currentMode.equals("selectStart")) {
+                setMode("auto");
+            } else {
+                setMode("selectStart");
+            }
+        });
+        finishBtn.addActionListener(e -> {
+            if (currentMode.equals("selectEnd")) {
+                setMode("auto");
+            } else {
+                setMode("selectEnd");
+            }
+        });
+
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new GridLayout(13, 1, 5, 10));
+        buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         buttonPanel.add(addVertexBtn);
         buttonPanel.add(addEdgeBtn);
@@ -179,12 +206,10 @@ public class MainWindow extends JFrame {
         buttonPanel.add(resetBtn);
         buttonPanel.add(arrangeBtn);
         buttonPanel.add(clearBtn);
+        buttonPanel.add(saveLogBtn);
 
-
-        // Панель для авто-режима: кнопка + поле скорости
         JPanel autoPanel = new JPanel(new BorderLayout(5, 0));
         autoPanel.add(autoBtn, BorderLayout.CENTER);
-
         speedField = new JTextField("500", 4);
         speedField.setToolTipText("Скорость авто-режима в мс (100-2000)");
         JLabel speedLabel = new JLabel("мс");
@@ -192,9 +217,7 @@ public class MainWindow extends JFrame {
         speedPanel.add(speedField, BorderLayout.CENTER);
         speedPanel.add(speedLabel, BorderLayout.EAST);
         autoPanel.add(speedPanel, BorderLayout.EAST);
-
         buttonPanel.add(autoPanel);
-
 
         add(buttonPanel, BorderLayout.EAST);
 
@@ -207,8 +230,13 @@ public class MainWindow extends JFrame {
         add(scrollPane, BorderLayout.SOUTH);
 
         updateButtonStyles();
-
         setLocationRelativeTo(null);
+    }
+
+    private void resetAlgorithmIfRunning() {
+        if (result != null || startVertex != null || endVertex != null) {
+            resetAlgorithm();
+        }
     }
 
     private void addHoverEffect(JButton btn) {
@@ -258,38 +286,51 @@ public class MainWindow extends JFrame {
 
     private boolean isActiveButton(JButton btn) {
         return (btn == addVertexBtn && currentMode.equals("addVertex")) ||
-               (btn == addEdgeBtn && currentMode.equals("addEdge"));
+               (btn == addEdgeBtn && currentMode.equals("addEdge")) ||
+               (btn == startBtn && currentMode.equals("selectStart")) ||
+               (btn == finishBtn && currentMode.equals("selectEnd"));
     }
 
     private void applyModeStyle(JButton btn) {
-        if (!btn.isEnabled()) return;
+        btn.setContentAreaFilled(false);
+        btn.setOpaque(true);
+        btn.setBackground(null);
 
-        if (btn == addVertexBtn) {
-            if (currentMode.equals("addVertex")) {
+        if (btn.isEnabled()) {
+            if (btn == addVertexBtn && currentMode.equals("addVertex")) {
                 btn.setBackground(ACTIVE_COLOR);
                 btn.setContentAreaFilled(true);
-            } else {
-                btn.setBackground(null);
-                btn.setContentAreaFilled(false);
-            }
-        } else if (btn == addEdgeBtn) {
-            if (currentMode.equals("addEdge")) {
+            } else if (btn == addEdgeBtn && currentMode.equals("addEdge")) {
                 btn.setBackground(ACTIVE_COLOR);
                 btn.setContentAreaFilled(true);
-            } else {
-                btn.setBackground(null);
-                btn.setContentAreaFilled(false);
+            } else if (btn == startBtn && currentMode.equals("selectStart")) {
+                btn.setBackground(ACTIVE_COLOR);
+                btn.setContentAreaFilled(true);
+            } else if (btn == finishBtn && currentMode.equals("selectEnd")) {
+                btn.setBackground(ACTIVE_COLOR);
+                btn.setContentAreaFilled(true);
             }
-        } else if (btn == clearBtn) {
-            btn.setBackground(null);
-            btn.setContentAreaFilled(false);
         }
     }
 
     private void updateButtonStyles() {
-        applyModeStyle(addVertexBtn);
-        applyModeStyle(addEdgeBtn);
-        applyModeStyle(clearBtn);
+        for (JButton btn : new JButton[]{addVertexBtn, addEdgeBtn, startBtn, finishBtn,
+                runBtn, stepBtn, resetBtn, arrangeBtn, clearBtn, autoBtn, saveLogBtn}) {
+            applyModeStyle(btn);
+        }
+    }
+
+    private void checkMouseHover(JButton btn) {
+        if (!btn.isEnabled()) return;
+        Point mousePos = btn.getMousePosition();
+        if (mousePos != null && btn.contains(mousePos)) {
+            btn.setContentAreaFilled(true);
+            if (isActiveButton(btn)) {
+                btn.setBackground(ACTIVE_HOVER_COLOR);
+            } else {
+                btn.setBackground(HOVER_COLOR);
+            }
+        }
     }
 
     private void setMode(String mode) {
@@ -302,27 +343,20 @@ public class MainWindow extends JFrame {
                 infoArea.setText("Режим: только добавление вершин. Кликните по пустому месту.");
             } else if (mode.equals("addEdge")) {
                 infoArea.setText("Режим: только добавление рёбер. Кликните по вершине.");
+            } else if (mode.equals("selectStart")) {
+                infoArea.setText("Выберите стартовую вершину.");
+            } else if (mode.equals("selectEnd")) {
+                infoArea.setText("Выберите конечную вершину.");
+            } else {
+                infoArea.setText("Авто-режим: клик по пустому месту — вершина, клик по вершине — ребро.");
             }
         }
         updateButtonStyles();
         deselectVertex();
 
-        checkMouseHover(addVertexBtn);
-        checkMouseHover(addEdgeBtn);
-        checkMouseHover(clearBtn);
-    }
-
-    private void checkMouseHover(JButton btn) {
-        if (!btn.isEnabled()) return;
-        // getMousePosition() может вернуть null, если компонент не отображается
-        Point mousePos = btn.getMousePosition();
-        if (mousePos != null && btn.contains(mousePos)) {
-            btn.setContentAreaFilled(true);
-            if (isActiveButton(btn)) {
-                btn.setBackground(ACTIVE_HOVER_COLOR);
-            } else {
-                btn.setBackground(HOVER_COLOR);
-            }
+        for (JButton btn : new JButton[]{addVertexBtn, addEdgeBtn, startBtn, finishBtn,
+                runBtn, stepBtn, resetBtn, arrangeBtn, clearBtn, autoBtn, saveLogBtn}) {
+            checkMouseHover(btn);
         }
     }
 
@@ -340,7 +374,6 @@ public class MainWindow extends JFrame {
             infoArea.setText("Кликните по вершине.");
             return;
         }
-
         if (selectedVertex == null) {
             selectVertex(clicked);
         } else if (clicked.equals(selectedVertex)) {
@@ -373,7 +406,6 @@ public class MainWindow extends JFrame {
                 "Введите вес ребра (" + from.getName() + " -> " + to.getName() + "):",
                 defaultWeight
         );
-
         if (input != null && !input.trim().isEmpty()) {
             try {
                 int weight = Integer.parseInt(input.trim());
@@ -397,6 +429,7 @@ public class MainWindow extends JFrame {
         resetAlgorithm();
         infoArea.setText("Граф очищен.");
         canvas.repaint();
+        updateButtonStyles();
     }
 
     private Vertex findVertexAt(int x, int y) {
@@ -404,18 +437,16 @@ public class MainWindow extends JFrame {
             int vx = (int) v.getX();
             int vy = (int) v.getY();
             double dist = Math.sqrt((x - vx) * (x - vx) + (y - vy) * (y - vy));
-            if (dist <= 25) {
-                return v;
-            }
+            if (dist <= 25) return v;
         }
         return null;
     }
+
     private void runAlgorithm() {
         if (startVertex == null) {
             infoArea.setText("Сначала выберите стартовую вершину.");
             return;
         }
-
         result = algorithm.execute(graph, startVertex);
         currentStepIndex = 0;
 
@@ -428,7 +459,9 @@ public class MainWindow extends JFrame {
         stepBtn.setEnabled(true);
         resetBtn.setEnabled(true);
         autoBtn.setEnabled(true);
+        saveLogBtn.setEnabled(true);
         runBtn.setEnabled(false);
+        updateButtonStyles();
     }
 
     private void showNextStep() {
@@ -436,8 +469,7 @@ public class MainWindow extends JFrame {
 
         if (currentStepIndex < result.getStepsHistory().size()) {
             BellmanFordStep step = result.getStepsHistory().get(currentStepIndex);
-            canvas.setCurrentStep(step);   // <-- ДОБАВИТЬ
-            canvas.repaint();              // <-- ДОБАВИТЬ
+            canvas.setCurrentStep(step);
             infoArea.setText(step.getStepDescription());
             currentStepIndex++;
         }
@@ -446,12 +478,16 @@ public class MainWindow extends JFrame {
             showFinalPath();
             stepBtn.setEnabled(false);
             autoBtn.setEnabled(false);
+            canvas.setCurrentStep(null);
+            canvas.repaint();
+            updateButtonStyles();
         }
     }
 
     private void resetAlgorithm() {
         if (autoTimer != null) autoTimer.stop();
         autoBtn.setEnabled(false);
+        saveLogBtn.setEnabled(false);
         result = null;
         currentStepIndex = 0;
         startVertex = null;
@@ -464,11 +500,12 @@ public class MainWindow extends JFrame {
         stepBtn.setEnabled(false);
         resetBtn.setEnabled(false);
         runBtn.setEnabled(false);
+        updateButtonStyles();
     }
+
     private void startAutoPlay() {
         if (result == null) return;
 
-        // Читаем скорость из поля
         try {
             autoSpeed = Integer.parseInt(speedField.getText().trim());
             if (autoSpeed < 100) autoSpeed = 100;
@@ -483,72 +520,99 @@ public class MainWindow extends JFrame {
         autoTimer = new Timer(autoSpeed, e -> {
             if (currentStepIndex < result.getStepsHistory().size()) {
                 BellmanFordStep step = result.getStepsHistory().get(currentStepIndex);
-                canvas.setCurrentStep(step);   // <-- ДОБАВИТЬ
-                canvas.repaint();              // <-- ДОБАВИТЬ
+                canvas.setCurrentStep(step);
                 infoArea.setText(step.getStepDescription());
                 currentStepIndex++;
             } else {
                 autoTimer.stop();
                 showFinalPath();
+                stepBtn.setEnabled(false);
+                autoBtn.setEnabled(false);
+                canvas.setCurrentStep(null);
+                canvas.repaint();
+                updateButtonStyles();
             }
         });
         autoTimer.start();
+    }
+
+    private void showPathToVertex(Vertex v) {
+        int dist = result.getFinalDistances().get(v);
+        if (result.hasNegativeCycle() && result.getUnreachableVertices().contains(v)) {
+            infoArea.setText("Вершина " + v.getName() + " находится в отрицательном цикле. Путь не существует.");
+            canvas.setShortestPath(null);
+        } else if (dist == 1_000_000_000) {
+            infoArea.setText("Путь до вершины " + v.getName() + " не найден.");
+            canvas.setShortestPath(null);
+        } else {
+            List<Vertex> path = algorithm.getShortestPath(v, result.getPredecessors(), result.getFinalDistances());
+            canvas.setShortestPath(path);
+            StringBuilder pathStr = new StringBuilder();
+            for (int i = 0; i < path.size(); i++) {
+                if (i > 0) pathStr.append(" -> ");
+                pathStr.append(path.get(i).getName());
+            }
+            infoArea.setText("Кратчайший путь до " + v.getName() + ": " + pathStr + ". Длина: " + dist + ".");
+        }
+        canvas.repaint();
     }
 
     private void showFinalPath() {
         if (result == null) return;
 
         if (endVertex != null) {
-            int dist = result.getFinalDistances().get(endVertex);
-
-            if (result.hasNegativeCycle() && result.getUnreachableVertices().contains(endVertex)) {
-                infoArea.setText("Вершина " + endVertex.getName() + " находится в отрицательном цикле. Путь не существует.");
-            } else if (dist == 1_000_000_000) {
-                infoArea.setText("Путь до вершины " + endVertex.getName() + " не найден.");
-            } else {
-                List<Vertex> path = algorithm.getShortestPath(endVertex, result.getPredecessors(), result.getFinalDistances());
-                if (path.isEmpty()) {
-                    infoArea.setText("Путь до вершины " + endVertex.getName() + " не найден.");
-                } else {
-                    StringBuilder pathStr = new StringBuilder();
-                    for (int i = 0; i < path.size(); i++) {
-                        if (i > 0) pathStr.append(" -> ");
-                        pathStr.append(path.get(i).getName());
-                    }
-                    infoArea.setText("Кратчайший путь до " + endVertex.getName() + ": " + pathStr + ". Длина: " + dist + ".");
-                }
-            }
+            showPathToVertex(endVertex);
         } else {
-            StringBuilder sb = new StringBuilder();
-            sb.append("=== Кратчайшие пути от вершины ").append(startVertex.getName()).append(" ===\n");
+            canvas.setShortestPath(null);
+            infoArea.setText("Алгоритм завершён. Кликните по вершине, чтобы увидеть кратчайший путь.");
+            canvas.repaint();
+        }
+    }
 
-            if (result.hasNegativeCycle()) {
-                sb.append("⚠ Обнаружен отрицательный цикл!\n");
+    private void saveLogToFile() {
+        if (result == null) {
+            infoArea.setText("Нет данных для сохранения.");
+            return;
+        }
+
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Сохранить лог алгоритма");
+        fileChooser.setSelectedFile(new File("bellman_ford_log.txt"));
+
+        int userChoice = fileChooser.showSaveDialog(MainWindow.this);
+        if (userChoice != JFileChooser.APPROVE_OPTION) return;
+
+        File file = fileChooser.getSelectedFile();
+        try (PrintWriter writer = new PrintWriter(new FileWriter(file))) {
+            writer.println("=== Лог алгоритма Форда-Беллмана ===");
+            writer.println("Стартовая вершина: " + startVertex.getName());
+            writer.println("Конечная вершина: " + (endVertex != null ? endVertex.getName() : "не выбрана"));
+            writer.println("Количество вершин в графе: " + graph.getVertexCount());
+            writer.println("Всего шагов: " + result.getStepsHistory().size());
+            writer.println("Отрицательный цикл: " + (result.hasNegativeCycle() ? "обнаружен" : "не обнаружен"));
+            writer.println();
+
+            List<BellmanFordStep> history = result.getStepsHistory();
+            for (int i = 0; i < history.size(); i++) {
+                BellmanFordStep step = history.get(i);
+                writer.println("Шаг " + (i + 1) + ": " + step.getStepDescription());
             }
 
+            writer.println();
+            writer.println("=== Итоговые расстояния ===");
+            Map<Vertex, Integer> distances = result.getFinalDistances();
             for (Vertex v : graph.getVertices()) {
+                int dist = distances.get(v);
+                String distStr = (dist == 1_000_000_000) ? "недостижима" : String.valueOf(dist);
                 if (result.hasNegativeCycle() && result.getUnreachableVertices().contains(v)) {
-                    sb.append("До ").append(v.getName()).append(": в отрицательном цикле\n");
-                } else {
-                    int dist = result.getFinalDistances().get(v);
-                    if (dist == 1_000_000_000) {
-                        sb.append("До ").append(v.getName()).append(": путь не найден\n");
-                    } else {
-                        List<Vertex> path = algorithm.getShortestPath(v, result.getPredecessors(), result.getFinalDistances());
-                        if (path.isEmpty()) {
-                            sb.append("До ").append(v.getName()).append(": путь не найден\n");
-                        } else {
-                            StringBuilder pathStr = new StringBuilder();
-                            for (int i = 0; i < path.size(); i++) {
-                                if (i > 0) pathStr.append(" -> ");
-                                pathStr.append(path.get(i).getName());
-                            }
-                            sb.append("До ").append(v.getName()).append(": ").append(pathStr).append(" (длина ").append(dist).append(")\n");
-                        }
-                    }
+                    distStr = "в отрицательном цикле";
                 }
+                writer.println("Вершина " + v.getName() + ": " + distStr);
             }
-            infoArea.setText(sb.toString());
+
+            infoArea.setText("Лог успешно сохранён в " + file.getAbsolutePath());
+        } catch (IOException ex) {
+            infoArea.setText("Ошибка сохранения: " + ex.getMessage());
         }
     }
 }
