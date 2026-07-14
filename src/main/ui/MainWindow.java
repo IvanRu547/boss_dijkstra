@@ -10,10 +10,18 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.Point;
 
+import algorithm.BellmanFordAlgorithm;
+import algorithm.BellmanFordResult;
+import algorithm.BellmanFordStep;
+import java.util.List;
+
 public class MainWindow extends JFrame {
 
     private Graph graph;
     private GraphPanel canvas;
+
+    private Timer autoTimer;
+
 
     private JButton addVertexBtn;
     private JButton addEdgeBtn;
@@ -22,10 +30,19 @@ public class MainWindow extends JFrame {
     private JButton resetBtn;
     private JButton clearBtn;
     private JTextArea infoArea;
+    private JButton startBtn;
+    private JButton finishBtn;
+    private JButton autoBtn;
+    private JButton arrangeBtn;
 
     private String currentMode = "auto";
     private int vertexCounter = 0;
     private Vertex selectedVertex = null;
+    private BellmanFordAlgorithm algorithm;
+    private BellmanFordResult result;
+    private int currentStepIndex;
+    private Vertex startVertex;
+    private Vertex endVertex;
 
     private static final Color ACTIVE_COLOR = new Color(0xC8, 0xD8, 0xE8);
     private static final Color HOVER_COLOR = new Color(0xE0, 0xE0, 0xE0);
@@ -34,6 +51,8 @@ public class MainWindow extends JFrame {
 
     public MainWindow() {
         graph = new Graph();
+        algorithm = new BellmanFordAlgorithm();
+        currentStepIndex = 0;
 
         setTitle("Визуализатор алгоритма Форда-Беллмана");
         setSize(900, 650);
@@ -60,6 +79,29 @@ public class MainWindow extends JFrame {
                     }
                 } else if (currentMode.equals("addEdge")) {
                     handleEdgeCreation(clicked);
+                } else if (currentMode.equals("selectStart")) {
+                    if (clicked != null) {
+                        startVertex = clicked;
+                        canvas.setStartVertex(startVertex);
+                        canvas.repaint();
+                        runBtn.setEnabled(true);
+                        infoArea.setText("Стартовая вершина: " + startVertex.getName() + ". Выберите финиш.");
+                        currentMode = "selectEnd";
+                    } else {
+                        infoArea.setText("Кликните по вершине, чтобы выбрать старт.");
+                    }
+                } else if (currentMode.equals("selectEnd")) {
+                    if (clicked != null && !clicked.equals(startVertex)) {
+                        endVertex = clicked;
+                        canvas.setEndVertex(endVertex);
+                        canvas.repaint();
+                        infoArea.setText("Конечная вершина: " + endVertex.getName() + ". Нажмите 'Запустить'.");
+                        currentMode = "auto";
+                    } else if (clicked != null && clicked.equals(startVertex)) {
+                        infoArea.setText("Стартовая и конечная вершины не должны совпадать.");
+                    } else {
+                        infoArea.setText("Кликните по вершине, чтобы выбрать финиш.");
+                    }
                 } else if (currentMode.equals("auto")) {
                     if (clicked == null) {
                         createVertex(x, y);
@@ -73,7 +115,7 @@ public class MainWindow extends JFrame {
         add(canvas, BorderLayout.CENTER);
 
         JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new GridLayout(8, 1, 5, 10));
+        buttonPanel.setLayout(new GridLayout(12, 1, 5, 10));
         buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         addVertexBtn = new JButton("Вершина");
@@ -82,6 +124,23 @@ public class MainWindow extends JFrame {
         stepBtn = new JButton("Шаг вперёд");
         resetBtn = new JButton("Сброс");
         clearBtn = new JButton("Очистить");
+        startBtn = new JButton("Старт");
+        finishBtn = new JButton("Финиш");
+        autoBtn = new JButton("Авто");
+        arrangeBtn = new JButton("Расставить");
+        arrangeBtn.setEnabled(false);
+
+        startBtn.addActionListener(e -> {
+            currentMode = "selectStart";
+            deselectVertex();
+            infoArea.setText("Выберите стартовую вершину.");
+        });
+
+        finishBtn.addActionListener(e -> {
+            currentMode = "selectEnd";
+            deselectVertex();
+            infoArea.setText("Выберите конечную вершину.");
+        });
 
         for (JButton btn : new JButton[]{addVertexBtn, addEdgeBtn, clearBtn}) {
             btn.setContentAreaFilled(false);
@@ -97,17 +156,28 @@ public class MainWindow extends JFrame {
         stepBtn.setEnabled(false);
         resetBtn.setEnabled(false);
         clearBtn.setEnabled(true);
+        autoBtn.setEnabled(false);
 
         addVertexBtn.addActionListener(e -> setMode("addVertex"));
         addEdgeBtn.addActionListener(e -> setMode("addEdge"));
         clearBtn.addActionListener(e -> clearGraph());
+        runBtn.addActionListener(e -> runAlgorithm());
+        stepBtn.addActionListener(e -> showNextStep());
+        resetBtn.addActionListener(e -> resetAlgorithm());
+        autoBtn.addActionListener(e -> startAutoPlay());
+
 
         buttonPanel.add(addVertexBtn);
         buttonPanel.add(addEdgeBtn);
+        buttonPanel.add(startBtn);
+        buttonPanel.add(finishBtn);
         buttonPanel.add(runBtn);
         buttonPanel.add(stepBtn);
         buttonPanel.add(resetBtn);
+        buttonPanel.add(arrangeBtn);
         buttonPanel.add(clearBtn);
+        buttonPanel.add(autoBtn);
+
 
         add(buttonPanel, BorderLayout.EAST);
 
@@ -307,6 +377,7 @@ public class MainWindow extends JFrame {
         graph.clear();
         vertexCounter = 0;
         deselectVertex();
+        resetAlgorithm();
         infoArea.setText("Граф очищен.");
         canvas.repaint();
     }
@@ -321,5 +392,130 @@ public class MainWindow extends JFrame {
             }
         }
         return null;
+    }
+    private void runAlgorithm() {
+        if (startVertex == null) {
+            infoArea.setText("Сначала выберите стартовую вершину.");
+            return;
+        }
+
+        result = algorithm.execute(graph, startVertex);
+        currentStepIndex = 0;
+
+        if (result.hasNegativeCycle()) {
+            infoArea.setText("Обнаружен отрицательный цикл! Некоторые вершины недостижимы.");
+        } else {
+            infoArea.setText("Алгоритм запущен. Всего шагов: " + result.getStepsHistory().size() + ". Нажмите 'Шаг вперёд'.");
+        }
+
+        stepBtn.setEnabled(true);
+        resetBtn.setEnabled(true);
+        autoBtn.setEnabled(true);
+        runBtn.setEnabled(false);
+    }
+
+    private void showNextStep() {
+        if (result == null) return;
+
+        if (currentStepIndex < result.getStepsHistory().size()) {
+            BellmanFordStep step = result.getStepsHistory().get(currentStepIndex);
+            infoArea.setText(step.getStepDescription());
+            currentStepIndex++;
+        }
+
+        if (currentStepIndex >= result.getStepsHistory().size()) {
+            showFinalPath();
+            stepBtn.setEnabled(false);
+            autoBtn.setEnabled(false);
+        }
+    }
+
+    private void resetAlgorithm() {
+        if (autoTimer != null) autoTimer.stop();
+        autoBtn.setEnabled(false);
+        result = null;
+        currentStepIndex = 0;
+        startVertex = null;
+        endVertex = null;
+        canvas.setStartVertex(null);
+        canvas.setEndVertex(null);
+        canvas.clearHighlights();
+        canvas.repaint();
+        infoArea.setText("Сброшено. Выберите стартовую и конечную вершины.");
+        stepBtn.setEnabled(false);
+        resetBtn.setEnabled(false);
+        runBtn.setEnabled(false);
+    }
+    private void startAutoPlay() {
+        if (result == null) return;
+
+        autoTimer = new Timer(500, e -> {
+            if (currentStepIndex < result.getStepsHistory().size()) {
+                BellmanFordStep step = result.getStepsHistory().get(currentStepIndex);
+                infoArea.setText(step.getStepDescription());
+                currentStepIndex++;
+            } else {
+                autoTimer.stop();
+                showFinalPath();
+            }
+        });
+        autoTimer.start();
+    }
+
+    private void showFinalPath() {
+        if (result == null) return;
+
+        if (endVertex != null) {
+            int dist = result.getFinalDistances().get(endVertex);
+
+            if (result.hasNegativeCycle() && result.getUnreachableVertices().contains(endVertex)) {
+                infoArea.setText("Вершина " + endVertex.getName() + " находится в отрицательном цикле. Путь не существует.");
+            } else if (dist == 1_000_000_000) {
+                infoArea.setText("Путь до вершины " + endVertex.getName() + " не найден.");
+            } else {
+                List<Vertex> path = algorithm.getShortestPath(endVertex, result.getPredecessors(), result.getFinalDistances());
+                if (path.isEmpty()) {
+                    infoArea.setText("Путь до вершины " + endVertex.getName() + " не найден.");
+                } else {
+                    StringBuilder pathStr = new StringBuilder();
+                    for (int i = 0; i < path.size(); i++) {
+                        if (i > 0) pathStr.append(" -> ");
+                        pathStr.append(path.get(i).getName());
+                    }
+                    infoArea.setText("Кратчайший путь до " + endVertex.getName() + ": " + pathStr + ". Длина: " + dist + ".");
+                }
+            }
+        } else {
+            StringBuilder sb = new StringBuilder();
+            sb.append("=== Кратчайшие пути от вершины ").append(startVertex.getName()).append(" ===\n");
+
+            if (result.hasNegativeCycle()) {
+                sb.append("⚠ Обнаружен отрицательный цикл!\n");
+            }
+
+            for (Vertex v : graph.getVertices()) {
+                if (result.hasNegativeCycle() && result.getUnreachableVertices().contains(v)) {
+                    sb.append("До ").append(v.getName()).append(": в отрицательном цикле\n");
+                } else {
+                    int dist = result.getFinalDistances().get(v);
+                    if (dist == 1_000_000_000) {
+                        sb.append("До ").append(v.getName()).append(": путь не найден\n");
+                    } else {
+                        List<Vertex> path = algorithm.getShortestPath(v, result.getPredecessors(), result.getFinalDistances());
+                        if (path.isEmpty()) {
+                            sb.append("До ").append(v.getName()).append(": путь не найден\n");
+                        } else {
+                            StringBuilder pathStr = new StringBuilder();
+                            for (int i = 0; i < path.size(); i++) {
+                                if (i > 0) pathStr.append(" -> ");
+                                pathStr.append(path.get(i).getName());
+                            }
+                            sb.append("До ").append(v.getName()).append(": ").append(pathStr).append(" (длина ").append(dist).append(")\n");
+                        }
+                    }
+                }
+            }
+            infoArea.setText(sb.toString());
+        }
     }
 }

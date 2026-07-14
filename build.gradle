@@ -11,12 +11,12 @@ repositories {
 }
 
 application {
-    mainClass = 'main.ui.App'
+    mainClass = 'ui.App'
 }
 
 jar {
     manifest {
-        attributes 'Main-Class': 'main.ui.App'
+        attributes 'Main-Class': 'ui.App'
     }
 }
 sourceSets {
