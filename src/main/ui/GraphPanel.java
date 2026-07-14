@@ -29,6 +29,9 @@ public class GraphPanel extends JPanel {
     private int lastMouseY;
     private boolean dragging = false;
 
+    private Vertex startVertex;
+    private Vertex endVertex;
+
     // Размеры в МИРОВЫХ координатах (при зуме 1.0 они соответствуют пикселям)
     private static final double CURVE_OFFSET = 35.0;   // изгиб дуги
     private static final double TEXT_OFFSET = 22.0;    // отступ текста от дуги/прямой
@@ -91,6 +94,7 @@ public class GraphPanel extends JPanel {
         this.selectedVertex = v;
     }
 
+
     public Point screenToGraph(int screenX, int screenY) {
         int graphX = (int) ((screenX - offsetX) / zoom);
         int graphY = (int) ((screenY - offsetY) / zoom);
@@ -122,6 +126,16 @@ public class GraphPanel extends JPanel {
             int x = (int) v.getX();
             int y = (int) v.getY();
 
+
+            if (v.equals(startVertex)) {
+                g2.setColor(Color.GREEN);
+                g2.fillOval(x - RADIUS - 5, y - RADIUS - 5, (RADIUS + 5) * 2, (RADIUS + 5) * 2);
+            }
+            if (v.equals(endVertex)) {
+                g2.setColor(Color.RED);
+                g2.fillOval(x - RADIUS - 5, y - RADIUS - 5, (RADIUS + 5) * 2, (RADIUS + 5) * 2);
+            }
+
             if (v.equals(selectedVertex)) {
                 g2.setColor(Color.YELLOW);
                 g2.fillOval(x - RADIUS - 5, y - RADIUS - 5, (RADIUS + 5) * 2, (RADIUS + 5) * 2);
@@ -138,6 +152,16 @@ public class GraphPanel extends JPanel {
             String label = v.getName();
             g2.drawString(label, x - fm.stringWidth(label) / 2, y + fm.getAscent() / 2 - 2);
         }
+    }
+
+    public void setStartVertex(Vertex v) { this.startVertex = v; }
+    public void setEndVertex(Vertex v) { this.endVertex = v; }
+
+    public void clearHighlights() {
+        this.startVertex = null;
+        this.endVertex = null;
+        //this.currentStep = null;
+        //this.finalPath = null;
     }
 
     private void drawEdge(Graphics2D g2, Edge edge) {

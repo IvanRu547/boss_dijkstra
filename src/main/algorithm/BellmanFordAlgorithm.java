@@ -138,19 +138,23 @@ public class BellmanFordAlgorithm {
      */
     public List<Vertex> getShortestPath(Vertex target, Map<Vertex, Vertex> predecessors, Map<Vertex, Integer> distances) {
         if (distances.getOrDefault(target, Integer.MAX_VALUE) == INF) {
-            return new ArrayList<>(); // Возвращаем пустой список, пути нет
+            return new ArrayList<>();
         }
 
         List<Vertex> path = new ArrayList<>();
+        Set<Vertex> visited = new HashSet<>();
         Vertex current = target;
 
-        // Идем назад от target, пока вершина есть в карте предков
         while (current != null) {
+            if (visited.contains(current)) {
+                return new ArrayList<>();
+            }
+            visited.add(current);
             path.add(current);
             current = predecessors.get(current);
         }
-        Collections.reverse(path);
 
+        Collections.reverse(path);
         return path;
     }
 }
