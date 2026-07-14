@@ -35,6 +35,9 @@ public class MainWindow extends JFrame {
     private JButton autoBtn;
     private JButton arrangeBtn;
 
+    private JTextField speedField;
+    private int autoSpeed = 500; // значение по умолчанию в мс
+
     private String currentMode = "auto";
     private int vertexCounter = 0;
     private Vertex selectedVertex = null;
@@ -176,7 +179,21 @@ public class MainWindow extends JFrame {
         buttonPanel.add(resetBtn);
         buttonPanel.add(arrangeBtn);
         buttonPanel.add(clearBtn);
-        buttonPanel.add(autoBtn);
+
+
+        // Панель для авто-режима: кнопка + поле скорости
+        JPanel autoPanel = new JPanel(new BorderLayout(5, 0));
+        autoPanel.add(autoBtn, BorderLayout.CENTER);
+
+        speedField = new JTextField("500", 4);
+        speedField.setToolTipText("Скорость авто-режима в мс (100-2000)");
+        JLabel speedLabel = new JLabel("мс");
+        JPanel speedPanel = new JPanel(new BorderLayout(2, 0));
+        speedPanel.add(speedField, BorderLayout.CENTER);
+        speedPanel.add(speedLabel, BorderLayout.EAST);
+        autoPanel.add(speedPanel, BorderLayout.EAST);
+
+        buttonPanel.add(autoPanel);
 
 
         add(buttonPanel, BorderLayout.EAST);
@@ -419,6 +436,8 @@ public class MainWindow extends JFrame {
 
         if (currentStepIndex < result.getStepsHistory().size()) {
             BellmanFordStep step = result.getStepsHistory().get(currentStepIndex);
+            canvas.setCurrentStep(step);   // <-- ДОБАВИТЬ
+            canvas.repaint();              // <-- ДОБАВИТЬ
             infoArea.setText(step.getStepDescription());
             currentStepIndex++;
         }
@@ -449,9 +468,23 @@ public class MainWindow extends JFrame {
     private void startAutoPlay() {
         if (result == null) return;
 
-        autoTimer = new Timer(500, e -> {
+        // Читаем скорость из поля
+        try {
+            autoSpeed = Integer.parseInt(speedField.getText().trim());
+            if (autoSpeed < 100) autoSpeed = 100;
+            if (autoSpeed > 2000) autoSpeed = 2000;
+        } catch (NumberFormatException ex) {
+            autoSpeed = 500;
+            speedField.setText("500");
+        }
+
+        if (autoTimer != null) autoTimer.stop();
+
+        autoTimer = new Timer(autoSpeed, e -> {
             if (currentStepIndex < result.getStepsHistory().size()) {
                 BellmanFordStep step = result.getStepsHistory().get(currentStepIndex);
+                canvas.setCurrentStep(step);   // <-- ДОБАВИТЬ
+                canvas.repaint();              // <-- ДОБАВИТЬ
                 infoArea.setText(step.getStepDescription());
                 currentStepIndex++;
             } else {
