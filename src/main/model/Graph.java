@@ -116,6 +116,8 @@ public class Graph {
 
         double area = width * height;
         double k = Math.sqrt(area / vertexCount);
+        double minDistance = 60.0; // минимальное расстояние между центрами вершин
+        int margin = 50;
 
         double temperature = width / 10.0;
         double coolingFactor = 0.95;
@@ -186,8 +188,6 @@ public class Graph {
                 double newX = v.getX() + (dx / dist) * limitedDist;
                 double newY = v.getY() + (dy / dist) * limitedDist;
 
-                // Ограничиваем холстом с отступами
-                int margin = 50;
                 newX = Math.max(margin, Math.min(width - margin, newX));
                 newY = Math.max(margin, Math.min(height - margin, newY));
 
@@ -196,6 +196,28 @@ public class Graph {
             }
 
             temperature *= coolingFactor;
+        }
+
+        // Финальный проход: расталкиваем слипшиеся вершины
+        for (int i = 0; i < vertexCount; i++) {
+            Vertex vi = vertices.get(i);
+            for (int j = i + 1; j < vertexCount; j++) {
+                Vertex vj = vertices.get(j);
+                double dx = vi.getX() - vj.getX();
+                double dy = vi.getY() - vj.getY();
+                double dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < minDistance && dist > 0.1) {
+                    double pushForce = (minDistance - dist) / 2.0;
+                    double pushX = (dx / dist) * pushForce;
+                    double pushY = (dy / dist) * pushForce;
+
+                    vi.setX(Math.max(margin, Math.min(width - margin, vi.getX() + pushX)));
+                    vi.setY(Math.max(margin, Math.min(height - margin, vi.getY() + pushY)));
+                    vj.setX(Math.max(margin, Math.min(width - margin, vj.getX() - pushX)));
+                    vj.setY(Math.max(margin, Math.min(height - margin, vj.getY() - pushY)));
+                }
+            }
         }
     }
 }

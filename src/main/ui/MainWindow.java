@@ -438,11 +438,11 @@ public class MainWindow extends JFrame {
                 if (vertexCount <= 10) {
                     probability = 0.15;
                 } else if (vertexCount <= 20) {
-                    probability = 0.1;
-                } else if (vertexCount <= 40) {
                     probability = 0.05;
+                } else if (vertexCount <= 40) {
+                    probability = 0.02;
                 } else if (vertexCount <= 60) {
-                    probability = 0.03;
+                    probability = 0.01;
                 } else {
                     probability = 0.02;
                 }
