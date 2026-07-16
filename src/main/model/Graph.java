@@ -105,4 +105,97 @@ public class Graph {
         }
         return allEdges;
     }
+
+    public void layoutForceDirected(int width, int height) {
+        int vertexCount = vertices.size();
+        if (vertexCount == 0) return;
+
+        int iterations = 100;
+        if (vertexCount > 30) iterations = 200;
+        if (vertexCount > 70) iterations = 300;
+
+        double area = width * height;
+        double k = Math.sqrt(area / vertexCount);
+
+        double temperature = width / 10.0;
+        double coolingFactor = 0.95;
+
+        // Случайные начальные позиции
+        for (Vertex v : vertices) {
+            v.setX(width / 2.0 + (Math.random() - 0.5) * width / 2.0);
+            v.setY(height / 2.0 + (Math.random() - 0.5) * height / 2.0);
+        }
+
+        for (int iter = 0; iter < iterations; iter++) {
+            double[] dispX = new double[vertexCount];
+            double[] dispY = new double[vertexCount];
+
+            // Силы отталкивания между всеми парами вершин
+            for (int i = 0; i < vertexCount; i++) {
+                Vertex vi = vertices.get(i);
+                for (int j = i + 1; j < vertexCount; j++) {
+                    Vertex vj = vertices.get(j);
+                    double dx = vi.getX() - vj.getX();
+                    double dy = vi.getY() - vj.getY();
+                    double dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 1.0) dist = 1.0;
+
+                    double force = k * k / dist;
+                    double fx = (dx / dist) * force;
+                    double fy = (dy / dist) * force;
+
+                    dispX[i] += fx;
+                    dispY[i] += fy;
+                    dispX[j] -= fx;
+                    dispY[j] -= fy;
+                }
+            }
+
+            // Силы притяжения по рёбрам
+            for (Edge edge : getAllEdges()) {
+                Vertex from = edge.getFrom();
+                Vertex to = edge.getTo();
+                int i = vertices.indexOf(from);
+                int j = vertices.indexOf(to);
+                if (i < 0 || j < 0) continue;
+
+                double dx = to.getX() - from.getX();
+                double dy = to.getY() - from.getY();
+                double dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 1.0) dist = 1.0;
+
+                double force = (dist * dist) / k;
+                double fx = (dx / dist) * force;
+                double fy = (dy / dist) * force;
+
+                dispX[i] += fx;
+                dispY[i] += fy;
+                dispX[j] -= fx;
+                dispY[j] -= fy;
+            }
+
+            // Применяем смещение
+            for (int i = 0; i < vertexCount; i++) {
+                Vertex v = vertices.get(i);
+                double dx = dispX[i];
+                double dy = dispY[i];
+                double dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 1.0) continue;
+
+                double limitedDist = Math.min(dist, temperature);
+                double newX = v.getX() + (dx / dist) * limitedDist;
+                double newY = v.getY() + (dy / dist) * limitedDist;
+
+                // Ограничиваем холстом с отступами
+                int margin = 50;
+                newX = Math.max(margin, Math.min(width - margin, newX));
+                newY = Math.max(margin, Math.min(height - margin, newY));
+
+                v.setX(newX);
+                v.setY(newY);
+            }
+
+            temperature *= coolingFactor;
+        }
+    }
 }

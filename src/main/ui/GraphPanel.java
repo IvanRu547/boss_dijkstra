@@ -458,4 +458,39 @@ public class GraphPanel extends JPanel {
         }
         return null;
     }
+
+    public void fitToScreen() {
+        if (graph.getVertexCount() == 0) return;
+
+        // Находим границы всех вершин
+        double minX = Double.MAX_VALUE, minY = Double.MAX_VALUE;
+        double maxX = -Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
+
+        for (Vertex v : graph.getVertices()) {
+            if (v.getX() < minX) minX = v.getX();
+            if (v.getY() < minY) minY = v.getY();
+            if (v.getX() > maxX) maxX = v.getX();
+            if (v.getY() > maxY) maxY = v.getY();
+        }
+
+        double graphWidth = maxX - minX + 2 * RADIUS + 20;
+        double graphHeight = maxY - minY + 2 * RADIUS + 20;
+
+        double panelWidth = getWidth();
+        double panelHeight = getHeight();
+
+        double scaleX = panelWidth / graphWidth;
+        double scaleY = panelHeight / graphHeight;
+        zoom = Math.min(scaleX, scaleY);
+
+        // Ограничиваем зум
+        if (zoom < ZOOM_MIN) zoom = ZOOM_MIN;
+        if (zoom > 1.5) zoom = 1.5; // не увеличивать слишком сильно
+
+        // Центрируем граф
+        double centerX = (minX + maxX) / 2.0;
+        double centerY = (minY + maxY) / 2.0;
+        offsetX = panelWidth / 2.0 - centerX * zoom;
+        offsetY = panelHeight / 2.0 - centerY * zoom;
+    }
 }

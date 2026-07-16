@@ -158,7 +158,7 @@ public class MainWindow extends JFrame {
         runBtn.setEnabled(false);
         stepBtn.setEnabled(false);
         resetBtn.setEnabled(false);
-        arrangeBtn.setEnabled(false);
+        arrangeBtn.setEnabled(true);
         autoBtn.setEnabled(false);
         saveLogBtn.setEnabled(false);
 
@@ -176,6 +176,35 @@ public class MainWindow extends JFrame {
         resetBtn.addActionListener(e -> resetAlgorithm());
         autoBtn.addActionListener(e -> startAutoPlay());
         saveLogBtn.addActionListener(e -> saveLogToFile());
+        arrangeBtn.addActionListener(e -> {
+            if (graph.getVertexCount() == 0) {
+                // Граф пустой — предлагаем сгенерировать случайный
+                String input = JOptionPane.showInputDialog(
+                        MainWindow.this,
+                        "Граф пуст. Введите количество вершин для случайного графа (5-100):",
+                        "20"
+                );
+                if (input != null && !input.trim().isEmpty()) {
+                    try {
+                        int vertexCount = Integer.parseInt(input.trim());
+                        if (vertexCount < 5) vertexCount = 5;
+                        if (vertexCount > 100) vertexCount = 100;
+                        generateRandomGraph(vertexCount);
+                        infoArea.setText("Сгенерирован случайный граф: " + vertexCount + " вершин.");
+                    } catch (NumberFormatException ex) {
+                        infoArea.setText("Ошибка: введите целое число.");
+                    }
+                }
+                return;
+            }
+
+            // Граф не пустой — расставляем
+            int worldWidth = (int) (canvas.getWidth() / canvas.getZoom());
+            int worldHeight = (int) (canvas.getHeight() / canvas.getZoom());
+            graph.layoutForceDirected(worldWidth, worldHeight);
+            canvas.repaint();
+            infoArea.setText("Вершины перераспределены автоматически (" + graph.getVertexCount() + " вершин).");
+        });
 
         startBtn.addActionListener(e -> {
             resetAlgorithmIfRunning();
@@ -382,6 +411,52 @@ public class MainWindow extends JFrame {
         } else {
             createEdgeBetween(selectedVertex, clicked);
         }
+    }
+
+    private void generateRandomGraph(int vertexCount) {
+        graph.clear();
+        vertexCounter = 0;
+
+        int worldWidth = (int) (canvas.getWidth() / canvas.getZoom());
+        int worldHeight = (int) (canvas.getHeight() / canvas.getZoom());
+
+        // Создаём вершины со случайными координатами
+        for (int i = 0; i < vertexCount; i++) {
+            int x = 50 + (int) (Math.random() * (worldWidth - 100));
+            int y = 50 + (int) (Math.random() * (worldHeight - 100));
+            Vertex v = new Vertex(vertexCounter, String.valueOf(vertexCounter), x, y);
+            vertexCounter++;
+            graph.addVertex(v);
+        }
+
+        // Создаём случайные рёбра (15% вероятность между любыми двумя вершинами)
+        List<Vertex> vertices = graph.getVertices();
+        for (int i = 0; i < vertices.size(); i++) {
+            for (int j = 0; j < vertices.size(); j++) {
+                // Динамическая вероятность: меньше вершин — выше шанс ребра, больше вершин — ниже
+                double probability;
+                if (vertexCount <= 10) {
+                    probability = 0.15;
+                } else if (vertexCount <= 20) {
+                    probability = 0.1;
+                } else if (vertexCount <= 40) {
+                    probability = 0.05;
+                } else if (vertexCount <= 60) {
+                    probability = 0.03;
+                } else {
+                    probability = 0.02;
+                }
+
+                if (i != j && Math.random() < probability) {
+                    int weight = 1 + (int) (Math.random() * 20);
+                    graph.addEdge(vertices.get(i), vertices.get(j), weight);
+                }
+            }
+        }
+
+        // Автоматически расставляем
+        graph.layoutForceDirected(worldWidth, worldHeight);
+        canvas.repaint();
     }
 
     private void selectVertex(Vertex v) {
