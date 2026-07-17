@@ -149,7 +149,6 @@ public class MainWindow extends JFrame {
 
         add(canvas, BorderLayout.CENTER);
 
-        // Создание кнопок
         addVertexBtn = new JButton("Вершина");
         addEdgeBtn = new JButton("Ребро");
         deleteBtn = new JButton("Удалить");
@@ -249,11 +248,9 @@ public class MainWindow extends JFrame {
             }
         });
 
-        // Построение панели кнопок с разделением на две группы
         Box buttonBox = Box.createVerticalBox();
         buttonBox.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Группа 1: режимы работы
         JPanel modePanel = new JPanel(new GridLayout(5, 1, 5, 10));
         modePanel.setOpaque(false);
         modePanel.add(addVertexBtn);
@@ -262,7 +259,6 @@ public class MainWindow extends JFrame {
         modePanel.add(startBtn);
         modePanel.add(finishBtn);
 
-        // Группа 2: управление алгоритмом и графом
         JPanel controlPanel = new JPanel(new GridLayout(7, 1, 5, 10));
         controlPanel.setOpaque(false);
         controlPanel.add(runBtn);
@@ -271,7 +267,6 @@ public class MainWindow extends JFrame {
         controlPanel.add(arrangeBtn);
         controlPanel.add(clearBtn);
         controlPanel.add(saveLogBtn);
-        // Панель авто
         JPanel autoPanel = new JPanel(new BorderLayout(5, 0));
         autoPanel.setOpaque(false);
         autoPanel.add(autoBtn, BorderLayout.CENTER);
@@ -285,12 +280,10 @@ public class MainWindow extends JFrame {
         autoPanel.add(speedPanel, BorderLayout.EAST);
         controlPanel.add(autoPanel);
 
-        // Добавляем группы в общий бокс с вертикальным разделителем
         buttonBox.add(modePanel);
         buttonBox.add(Box.createVerticalStrut(25));
         buttonBox.add(controlPanel);
 
-        // Оборачиваем в панель для растяжения по высоте
         JPanel eastWrapper = new JPanel(new BorderLayout());
         eastWrapper.setOpaque(false);
         eastWrapper.add(buttonBox, BorderLayout.CENTER);
