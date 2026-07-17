@@ -35,6 +35,7 @@ public class GraphPanel extends JPanel {
     private boolean dragging = false;
 
     private BellmanFordStep currentStep;
+    private Map<Vertex, Integer> finalDistances;  // <-- новое поле
 
     private Vertex startVertex;
     private Vertex endVertex;
@@ -150,6 +151,11 @@ public class GraphPanel extends JPanel {
         repaint();
     }
 
+    public void setFinalDistances(Map<Vertex, Integer> distances) {
+        this.finalDistances = distances;
+        repaint();
+    }
+
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -240,10 +246,17 @@ public class GraphPanel extends JPanel {
             }
         }
 
+        // Отображение расстояний
+        Map<Vertex, Integer> distancesToShow = null;
         if (currentStep != null) {
-            Map<Vertex, Integer> distances = currentStep.getDistancesSnapshot();
+            distancesToShow = currentStep.getDistancesSnapshot();
+        } else if (finalDistances != null) {
+            distancesToShow = finalDistances;
+        }
+
+        if (distancesToShow != null) {
             for (Vertex v : graph.getVertices()) {
-                int dist = distances.getOrDefault(v, Integer.MAX_VALUE);
+                int dist = distancesToShow.getOrDefault(v, Integer.MAX_VALUE);
                 if (dist != 1_000_000_000) {
                     int vx = (int) v.getX();
                     int vy = (int) v.getY();
@@ -265,6 +278,7 @@ public class GraphPanel extends JPanel {
         this.endVertex = null;
         this.currentStep = null;
         this.shortestPathEdges = null;
+        this.finalDistances = null;  // <-- добавили очистку
         repaint();
     }
 
@@ -462,7 +476,6 @@ public class GraphPanel extends JPanel {
     public void fitToScreen() {
         if (graph.getVertexCount() == 0) return;
 
-        // Находим границы всех вершин
         double minX = Double.MAX_VALUE, minY = Double.MAX_VALUE;
         double maxX = -Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
 
@@ -483,11 +496,9 @@ public class GraphPanel extends JPanel {
         double scaleY = panelHeight / graphHeight;
         zoom = Math.min(scaleX, scaleY);
 
-        // Ограничиваем зум
         if (zoom < ZOOM_MIN) zoom = ZOOM_MIN;
-        if (zoom > 1.5) zoom = 1.5; // не увеличивать слишком сильно
+        if (zoom > 1.5) zoom = 1.5;
 
-        // Центрируем граф
         double centerX = (minX + maxX) / 2.0;
         double centerY = (minY + maxY) / 2.0;
         offsetX = panelWidth / 2.0 - centerX * zoom;
