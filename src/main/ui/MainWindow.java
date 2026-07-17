@@ -8,6 +8,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.Point;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -148,6 +149,7 @@ public class MainWindow extends JFrame {
 
         add(canvas, BorderLayout.CENTER);
 
+        // Создание кнопок
         addVertexBtn = new JButton("Вершина");
         addEdgeBtn = new JButton("Ребро");
         deleteBtn = new JButton("Удалить");
@@ -247,34 +249,52 @@ public class MainWindow extends JFrame {
             }
         });
 
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new GridLayout(14, 1, 5, 17));
-        buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        // Построение панели кнопок с разделением на две группы
+        Box buttonBox = Box.createVerticalBox();
+        buttonBox.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        buttonPanel.add(addVertexBtn);
-        buttonPanel.add(addEdgeBtn);
-        buttonPanel.add(deleteBtn);
-        buttonPanel.add(startBtn);
-        buttonPanel.add(finishBtn);
-        buttonPanel.add(runBtn);
-        buttonPanel.add(stepBtn);
-        buttonPanel.add(resetBtn);
-        buttonPanel.add(arrangeBtn);
-        buttonPanel.add(clearBtn);
-        buttonPanel.add(saveLogBtn);
+        // Группа 1: режимы работы
+        JPanel modePanel = new JPanel(new GridLayout(5, 1, 5, 10));
+        modePanel.setOpaque(false);
+        modePanel.add(addVertexBtn);
+        modePanel.add(addEdgeBtn);
+        modePanel.add(deleteBtn);
+        modePanel.add(startBtn);
+        modePanel.add(finishBtn);
 
+        // Группа 2: управление алгоритмом и графом
+        JPanel controlPanel = new JPanel(new GridLayout(7, 1, 5, 10));
+        controlPanel.setOpaque(false);
+        controlPanel.add(runBtn);
+        controlPanel.add(stepBtn);
+        controlPanel.add(resetBtn);
+        controlPanel.add(arrangeBtn);
+        controlPanel.add(clearBtn);
+        controlPanel.add(saveLogBtn);
+        // Панель авто
         JPanel autoPanel = new JPanel(new BorderLayout(5, 0));
+        autoPanel.setOpaque(false);
         autoPanel.add(autoBtn, BorderLayout.CENTER);
         speedField = new JTextField("500", 4);
         speedField.setToolTipText("Скорость авто-режима в мс (100-2000)");
         JLabel speedLabel = new JLabel("мс");
         JPanel speedPanel = new JPanel(new BorderLayout(2, 0));
+        speedPanel.setOpaque(false);
         speedPanel.add(speedField, BorderLayout.CENTER);
         speedPanel.add(speedLabel, BorderLayout.EAST);
         autoPanel.add(speedPanel, BorderLayout.EAST);
-        buttonPanel.add(autoPanel);
+        controlPanel.add(autoPanel);
 
-        add(buttonPanel, BorderLayout.EAST);
+        // Добавляем группы в общий бокс с вертикальным разделителем
+        buttonBox.add(modePanel);
+        buttonBox.add(Box.createVerticalStrut(25));
+        buttonBox.add(controlPanel);
+
+        // Оборачиваем в панель для растяжения по высоте
+        JPanel eastWrapper = new JPanel(new BorderLayout());
+        eastWrapper.setOpaque(false);
+        eastWrapper.add(buttonBox, BorderLayout.CENTER);
+        add(eastWrapper, BorderLayout.EAST);
 
         infoArea = new JTextArea(3, 40);
         infoArea.setText("Авто-режим: клик по пустому месту — вершина, клик по вершине — ребро.");
@@ -576,7 +596,7 @@ public class MainWindow extends JFrame {
         currentStepIndex = 0;
 
         if (result.hasNegativeCycle()) {
-            infoArea.setText("Обнаружен отрицательный цикл! Некоторые вершины недостижимы.");
+            infoArea.setText("Обнаружен отрицательный цикл! Некоторые вершины достижимы из отрицательного цикла.");
         } else {
             infoArea.setText("Алгоритм запущен. Всего шагов: " + result.getStepsHistory().size() + ". Нажмите 'Шаг вперёд'.");
         }
@@ -619,7 +639,7 @@ public class MainWindow extends JFrame {
         endVertex = null;
         canvas.setStartVertex(null);
         canvas.setEndVertex(null);
-        canvas.setFinalDistances(null);   // сброс финальных расстояний
+        canvas.setFinalDistances(null);
         canvas.clearHighlights();
         canvas.repaint();
         infoArea.setText("Сброшено. Выберите стартовую и конечную вершины.");
@@ -665,7 +685,7 @@ public class MainWindow extends JFrame {
     private void showPathToVertex(Vertex v) {
         int dist = result.getFinalDistances().get(v);
         if (result.hasNegativeCycle() && result.getUnreachableVertices().contains(v)) {
-            infoArea.setText("Вершина " + v.getName() + " находится в отрицательном цикле. Путь не существует.");
+            infoArea.setText("Вершина " + v.getName() + " достижима из отрицательного цикла. Путь не существует.");
             canvas.setShortestPath(null);
         } else if (dist == 1_000_000_000) {
             infoArea.setText("Путь до вершины " + v.getName() + " не найден.");
@@ -686,7 +706,6 @@ public class MainWindow extends JFrame {
     private void showFinalPath() {
         if (result == null) return;
 
-        // Сохраняем финальные расстояния для отображения на холсте
         canvas.setFinalDistances(result.getFinalDistances());
 
         if (endVertex != null) {
@@ -734,7 +753,7 @@ public class MainWindow extends JFrame {
                 int dist = distances.get(v);
                 String distStr = (dist == 1_000_000_000) ? "недостижима" : String.valueOf(dist);
                 if (result.hasNegativeCycle() && result.getUnreachableVertices().contains(v)) {
-                    distStr = "в отрицательном цикле";
+                    distStr = "достижима из отрицательного цикла";
                 }
                 writer.println("Вершина " + v.getName() + ": " + distStr);
             }
