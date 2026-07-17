@@ -105,7 +105,6 @@ public class BellmanFordTester {
     }
 
     private static void runAndLogTest(Graph graph, Vertex startVertex, Vertex targetVertex, PrintWriter writer) {
-        // Логирование структуры входного графа
         writer.println("ВХОДНОЙ ГРАФ:");
         writer.print("  Вершины: ");
         List<Vertex> vertices = graph.getVertices();
@@ -131,18 +130,15 @@ public class BellmanFordTester {
         }
         writer.println();
 
-        // Запуск алгоритма
         BellmanFordAlgorithm algorithm = new BellmanFordAlgorithm();
         BellmanFordResult result = algorithm.execute(graph, startVertex);
 
         writer.println("Стартовая вершина: " + startVertex.getName());
         writer.println("Целевая вершина для проверки пути: " + targetVertex.getName());
 
-        // Проверка на отрицательный цикл
         boolean hasCycle = result.hasNegativeCycle();
         writer.println("Отрицательный цикл обнаружен: " + hasCycle);
 
-        // Логирование финальных дистанций
         writer.println("\nФинальные дистанции:");
         Map<Vertex, Integer> distances = result.getFinalDistances();
         for (Map.Entry<Vertex, Integer> entry : distances.entrySet()) {
@@ -150,7 +146,6 @@ public class BellmanFordTester {
             writer.println("До " + entry.getKey().getName() + " = " + distStr);
         }
 
-        // Логирование недостижимых вершин
         writer.println("\nНедостижимые вершины:");
         Set<Vertex> unreachable = result.getUnreachableVertices();
         if (unreachable.isEmpty()) {
@@ -161,7 +156,6 @@ public class BellmanFordTester {
             }
         }
 
-        // Восстановление пути
         if (!hasCycle) {
             writer.println("\nВосстановление пути до " + targetVertex.getName() + ":");
             List<Vertex> path = algorithm.getShortestPath(targetVertex, result.getPredecessors(), distances);
@@ -179,7 +173,6 @@ public class BellmanFordTester {
             writer.println("\nВосстановление пути пропущено, так как обнаружен отрицательный цикл.");
         }
 
-        // Логирование истории шагов
         writer.println("\nИстория шагов (детализация релаксации):");
         List<BellmanFordStep> history = result.getStepsHistory();
         for (int i = 0; i < history.size(); i++) {

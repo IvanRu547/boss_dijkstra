@@ -29,6 +29,7 @@ public class MainWindow extends JFrame {
 
     private JButton addVertexBtn;
     private JButton addEdgeBtn;
+    private JButton deleteBtn;
     private JButton runBtn;
     private JButton stepBtn;
     private JButton resetBtn;
@@ -87,6 +88,23 @@ public class MainWindow extends JFrame {
                     }
                 } else if (currentMode.equals("addEdge")) {
                     handleEdgeCreation(clicked);
+                } else if (currentMode.equals("delete")) {
+                    if (clicked != null) {
+                        if (selectedVertex == null) {
+                            selectVertex(clicked);
+                            infoArea.setText("Выбрана вершина " + clicked.getName()
+                                    + ". Выберите вторую вершину для удаления ребра или нажмите на эту же ещё раз для удаления вершины.");
+                        } else if (clicked.equals(selectedVertex)) {
+                            deleteVertex(clicked);
+                            deselectVertex();
+                        } else {
+                            deleteEdgeBetween(selectedVertex, clicked);
+                            deselectVertex();
+                        }
+                    } else {
+                        deselectVertex();
+                        infoArea.setText("Режим удаления. Кликните по вершине.");
+                    }
                 } else if (currentMode.equals("selectStart")) {
                     if (clicked != null) {
                         startVertex = clicked;
@@ -133,6 +151,7 @@ public class MainWindow extends JFrame {
 
         addVertexBtn = new JButton("Вершина");
         addEdgeBtn = new JButton("Ребро");
+        deleteBtn = new JButton("Удалить");
         startBtn = new JButton("Старт");
         finishBtn = new JButton("Финиш");
         runBtn = new JButton("Запустить");
@@ -144,8 +163,9 @@ public class MainWindow extends JFrame {
         saveLogBtn = new JButton("Сохранить лог");
 
         JButton[] allButtons = {
-            addVertexBtn, addEdgeBtn, startBtn, finishBtn,
-            runBtn, stepBtn, resetBtn, arrangeBtn, clearBtn, autoBtn, saveLogBtn
+            addVertexBtn, addEdgeBtn, deleteBtn,
+            startBtn, finishBtn, runBtn, stepBtn, resetBtn,
+            arrangeBtn, clearBtn, autoBtn, saveLogBtn
         };
         for (JButton btn : allButtons) {
             btn.setContentAreaFilled(false);
@@ -170,6 +190,14 @@ public class MainWindow extends JFrame {
             resetAlgorithmIfRunning();
             setMode("addEdge");
         });
+        deleteBtn.addActionListener(e -> {
+            resetAlgorithmIfRunning();
+            if (currentMode.equals("delete")) {
+                setMode("auto");
+            } else {
+                setMode("delete");
+            }
+        });
         clearBtn.addActionListener(e -> clearGraph());
         runBtn.addActionListener(e -> runAlgorithm());
         stepBtn.addActionListener(e -> showNextStep());
@@ -178,7 +206,6 @@ public class MainWindow extends JFrame {
         saveLogBtn.addActionListener(e -> saveLogToFile());
         arrangeBtn.addActionListener(e -> {
             if (graph.getVertexCount() == 0) {
-                // Граф пустой — предлагаем сгенерировать случайный
                 String input = JOptionPane.showInputDialog(
                         MainWindow.this,
                         "Граф пуст. Введите количество вершин для случайного графа (5-100):",
@@ -198,7 +225,6 @@ public class MainWindow extends JFrame {
                 return;
             }
 
-            // Граф не пустой — расставляем
             int worldWidth = (int) (canvas.getWidth() / canvas.getZoom());
             int worldHeight = (int) (canvas.getHeight() / canvas.getZoom());
             graph.layoutForceDirected(worldWidth, worldHeight);
@@ -222,33 +248,46 @@ public class MainWindow extends JFrame {
             }
         });
 
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.setLayout(new GridLayout(13, 1, 5, 10));
-        buttonPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        Box buttonBox = Box.createVerticalBox();
+        buttonBox.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        buttonPanel.add(addVertexBtn);
-        buttonPanel.add(addEdgeBtn);
-        buttonPanel.add(startBtn);
-        buttonPanel.add(finishBtn);
-        buttonPanel.add(runBtn);
-        buttonPanel.add(stepBtn);
-        buttonPanel.add(resetBtn);
-        buttonPanel.add(arrangeBtn);
-        buttonPanel.add(clearBtn);
-        buttonPanel.add(saveLogBtn);
+        JPanel modePanel = new JPanel(new GridLayout(5, 1, 5, 10));
+        modePanel.setOpaque(false);
+        modePanel.add(addVertexBtn);
+        modePanel.add(addEdgeBtn);
+        modePanel.add(deleteBtn);
+        modePanel.add(startBtn);
+        modePanel.add(finishBtn);
 
+        JPanel controlPanel = new JPanel(new GridLayout(7, 1, 5, 10));
+        controlPanel.setOpaque(false);
+        controlPanel.add(runBtn);
+        controlPanel.add(stepBtn);
+        controlPanel.add(resetBtn);
+        controlPanel.add(arrangeBtn);
+        controlPanel.add(clearBtn);
+        controlPanel.add(saveLogBtn);
         JPanel autoPanel = new JPanel(new BorderLayout(5, 0));
+        autoPanel.setOpaque(false);
         autoPanel.add(autoBtn, BorderLayout.CENTER);
         speedField = new JTextField("500", 4);
         speedField.setToolTipText("Скорость авто-режима в мс (100-2000)");
         JLabel speedLabel = new JLabel("мс");
         JPanel speedPanel = new JPanel(new BorderLayout(2, 0));
+        speedPanel.setOpaque(false);
         speedPanel.add(speedField, BorderLayout.CENTER);
         speedPanel.add(speedLabel, BorderLayout.EAST);
         autoPanel.add(speedPanel, BorderLayout.EAST);
-        buttonPanel.add(autoPanel);
+        controlPanel.add(autoPanel);
 
-        add(buttonPanel, BorderLayout.EAST);
+        buttonBox.add(modePanel);
+        buttonBox.add(Box.createVerticalStrut(25));
+        buttonBox.add(controlPanel);
+
+        JPanel eastWrapper = new JPanel(new BorderLayout());
+        eastWrapper.setOpaque(false);
+        eastWrapper.add(buttonBox, BorderLayout.CENTER);
+        add(eastWrapper, BorderLayout.EAST);
 
         infoArea = new JTextArea(3, 40);
         infoArea.setText("Авто-режим: клик по пустому месту — вершина, клик по вершине — ребро.");
@@ -316,6 +355,7 @@ public class MainWindow extends JFrame {
     private boolean isActiveButton(JButton btn) {
         return (btn == addVertexBtn && currentMode.equals("addVertex")) ||
                (btn == addEdgeBtn && currentMode.equals("addEdge")) ||
+               (btn == deleteBtn && currentMode.equals("delete")) ||
                (btn == startBtn && currentMode.equals("selectStart")) ||
                (btn == finishBtn && currentMode.equals("selectEnd"));
     }
@@ -332,6 +372,9 @@ public class MainWindow extends JFrame {
             } else if (btn == addEdgeBtn && currentMode.equals("addEdge")) {
                 btn.setBackground(ACTIVE_COLOR);
                 btn.setContentAreaFilled(true);
+            } else if (btn == deleteBtn && currentMode.equals("delete")) {
+                btn.setBackground(ACTIVE_COLOR);
+                btn.setContentAreaFilled(true);
             } else if (btn == startBtn && currentMode.equals("selectStart")) {
                 btn.setBackground(ACTIVE_COLOR);
                 btn.setContentAreaFilled(true);
@@ -343,8 +386,8 @@ public class MainWindow extends JFrame {
     }
 
     private void updateButtonStyles() {
-        for (JButton btn : new JButton[]{addVertexBtn, addEdgeBtn, startBtn, finishBtn,
-                runBtn, stepBtn, resetBtn, arrangeBtn, clearBtn, autoBtn, saveLogBtn}) {
+        for (JButton btn : new JButton[]{addVertexBtn, addEdgeBtn, deleteBtn,
+                startBtn, finishBtn, runBtn, stepBtn, resetBtn, arrangeBtn, clearBtn, autoBtn, saveLogBtn}) {
             applyModeStyle(btn);
         }
     }
@@ -372,6 +415,8 @@ public class MainWindow extends JFrame {
                 infoArea.setText("Режим: только добавление вершин. Кликните по пустому месту.");
             } else if (mode.equals("addEdge")) {
                 infoArea.setText("Режим: только добавление рёбер. Кликните по вершине.");
+            } else if (mode.equals("delete")) {
+                infoArea.setText("Режим удаления. Клик по вершине — выбрать, повторно — удалить; две вершины — удалить ребро.");
             } else if (mode.equals("selectStart")) {
                 infoArea.setText("Выберите стартовую вершину.");
             } else if (mode.equals("selectEnd")) {
@@ -383,8 +428,8 @@ public class MainWindow extends JFrame {
         updateButtonStyles();
         deselectVertex();
 
-        for (JButton btn : new JButton[]{addVertexBtn, addEdgeBtn, startBtn, finishBtn,
-                runBtn, stepBtn, resetBtn, arrangeBtn, clearBtn, autoBtn, saveLogBtn}) {
+        for (JButton btn : new JButton[]{addVertexBtn, addEdgeBtn, deleteBtn,
+                startBtn, finishBtn, runBtn, stepBtn, resetBtn, arrangeBtn, clearBtn, autoBtn, saveLogBtn}) {
             checkMouseHover(btn);
         }
     }
@@ -395,6 +440,28 @@ public class MainWindow extends JFrame {
         graph.addVertex(v);
         canvas.repaint();
         infoArea.setText("Добавлена вершина #" + v.getId());
+    }
+
+    private void deleteVertex(Vertex v) {
+        if (v.equals(startVertex)) startVertex = null;
+        if (v.equals(endVertex)) endVertex = null;
+        canvas.setStartVertex(startVertex);
+        canvas.setEndVertex(endVertex);
+        graph.removeVertex(v);
+        canvas.repaint();
+        infoArea.setText("Вершина " + v.getName() + " удалена.");
+        resetAlgorithmIfRunning();
+    }
+
+    private void deleteEdgeBetween(Vertex from, Vertex to) {
+        Edge edge = graph.getEdgeBetween(from, to);
+        if (edge != null) {
+            graph.removeEdge(edge);
+            canvas.repaint();
+            infoArea.setText("Ребро " + from.getName() + " -> " + to.getName() + " удалено.");
+        } else {
+            infoArea.setText("Ребро между " + from.getName() + " и " + to.getName() + " не существует.");
+        }
     }
 
     private void handleEdgeCreation(Vertex clicked) {
@@ -420,7 +487,6 @@ public class MainWindow extends JFrame {
         int worldWidth = (int) (canvas.getWidth() / canvas.getZoom());
         int worldHeight = (int) (canvas.getHeight() / canvas.getZoom());
 
-        // Создаём вершины со случайными координатами
         for (int i = 0; i < vertexCount; i++) {
             int x = 50 + (int) (Math.random() * (worldWidth - 100));
             int y = 50 + (int) (Math.random() * (worldHeight - 100));
@@ -429,11 +495,9 @@ public class MainWindow extends JFrame {
             graph.addVertex(v);
         }
 
-        // Создаём случайные рёбра (15% вероятность между любыми двумя вершинами)
         List<Vertex> vertices = graph.getVertices();
         for (int i = 0; i < vertices.size(); i++) {
             for (int j = 0; j < vertices.size(); j++) {
-                // Динамическая вероятность: меньше вершин — выше шанс ребра, больше вершин — ниже
                 double probability;
                 if (vertexCount <= 10) {
                     probability = 0.15;
@@ -454,7 +518,6 @@ public class MainWindow extends JFrame {
             }
         }
 
-        // Автоматически расставляем
         graph.layoutForceDirected(worldWidth, worldHeight);
         canvas.repaint();
     }
@@ -526,7 +589,7 @@ public class MainWindow extends JFrame {
         currentStepIndex = 0;
 
         if (result.hasNegativeCycle()) {
-            infoArea.setText("Обнаружен отрицательный цикл! Некоторые вершины недостижимы.");
+            infoArea.setText("Обнаружен отрицательный цикл! Некоторые вершины достижимы из отрицательного цикла.");
         } else {
             infoArea.setText("Алгоритм запущен. Всего шагов: " + result.getStepsHistory().size() + ". Нажмите 'Шаг вперёд'.");
         }
@@ -569,6 +632,7 @@ public class MainWindow extends JFrame {
         endVertex = null;
         canvas.setStartVertex(null);
         canvas.setEndVertex(null);
+        canvas.setFinalDistances(null);
         canvas.clearHighlights();
         canvas.repaint();
         infoArea.setText("Сброшено. Выберите стартовую и конечную вершины.");
@@ -614,7 +678,7 @@ public class MainWindow extends JFrame {
     private void showPathToVertex(Vertex v) {
         int dist = result.getFinalDistances().get(v);
         if (result.hasNegativeCycle() && result.getUnreachableVertices().contains(v)) {
-            infoArea.setText("Вершина " + v.getName() + " находится в отрицательном цикле. Путь не существует.");
+            infoArea.setText("Вершина " + v.getName() + " достижима из отрицательного цикла. Путь не существует.");
             canvas.setShortestPath(null);
         } else if (dist == 1_000_000_000) {
             infoArea.setText("Путь до вершины " + v.getName() + " не найден.");
@@ -634,6 +698,8 @@ public class MainWindow extends JFrame {
 
     private void showFinalPath() {
         if (result == null) return;
+
+        canvas.setFinalDistances(result.getFinalDistances());
 
         if (endVertex != null) {
             showPathToVertex(endVertex);
@@ -680,7 +746,7 @@ public class MainWindow extends JFrame {
                 int dist = distances.get(v);
                 String distStr = (dist == 1_000_000_000) ? "недостижима" : String.valueOf(dist);
                 if (result.hasNegativeCycle() && result.getUnreachableVertices().contains(v)) {
-                    distStr = "в отрицательном цикле";
+                    distStr = "достижима из отрицательного цикла";
                 }
                 writer.println("Вершина " + v.getName() + ": " + distStr);
             }

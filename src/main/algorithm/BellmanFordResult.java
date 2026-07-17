@@ -21,7 +21,7 @@ public class BellmanFordResult {
         this.finalDistances = finalDistances;
         this.predecessors = predecessors;
         this.hasNegativeCycle = hasNegativeCycle;
-        this.unreachableVertices = unreachableVertices; // Вершины, путь до которых испорчен циклом
+        this.unreachableVertices = unreachableVertices;
     }
 
     public List<BellmanFordStep> getStepsHistory() { return stepsHistory; }

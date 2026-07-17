@@ -20,11 +20,10 @@ public class BellmanFordStep {
                            String stepDescription) {
         this.processedEdge = processedEdge;
         this.activeVertex = activeVertex;
-        // Обязательно делаем копию состояния на текущий момент!
         this.distancesSnapshot = new HashMap<>(currentDistances);
         this.predecessorsSnapshot = new HashMap<>(currentPredecessors);
         this.isDistanceUpdated = isDistanceUpdated;
-        this.stepDescription = stepDescription; // Подробный текст шага на русском
+        this.stepDescription = stepDescription;
     }
 
     public Edge getProcessedEdge() { return processedEdge; }
